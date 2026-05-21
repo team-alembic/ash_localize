@@ -23,6 +23,13 @@ defmodule AshLocalize.Test.Profile do
     attribute :raw_locale, :string, public?: true
     attribute :raw_territory, :string, public?: true
     attribute :raw_currency, :string, public?: true
+
+    # Source attributes for the formatting calculations.
+    attribute :price, :decimal, public?: true
+    attribute :currency, :string, public?: true
+    attribute :event_date, :date, public?: true
+    attribute :event_at, :utc_datetime, public?: true
+    attribute :tags, {:array, :string}, public?: true
   end
 
   validations do
@@ -34,5 +41,27 @@ defmodule AshLocalize.Test.Profile do
   actions do
     default_accept :*
     defaults [:create, :read]
+  end
+
+  calculations do
+    calculate :formatted_price, :string, {AshLocalize.Calculations.FormatNumber, field: :price}
+
+    calculate :formatted_price_usd,
+              :string,
+              {AshLocalize.Calculations.FormatCurrency, field: :price, currency: "USD"}
+
+    calculate :formatted_price_dynamic,
+              :string,
+              {AshLocalize.Calculations.FormatCurrency, field: :price, currency_field: :currency}
+
+    calculate :formatted_event_date,
+              :string,
+              {AshLocalize.Calculations.FormatDate, field: :event_date}
+
+    calculate :formatted_event_at,
+              :string,
+              {AshLocalize.Calculations.FormatDateTime, field: :event_at}
+
+    calculate :formatted_tags, :string, {AshLocalize.Calculations.FormatList, field: :tags}
   end
 end

@@ -66,6 +66,39 @@ defmodule AshLocalize.ContextTest do
     end
   end
 
+  describe "from_calculation/2" do
+    test "uses a :locale calculation argument" do
+      context = %{arguments: %{locale: "ja-JP"}, source_context: %{}, actor: nil}
+      assert Context.from_calculation(context) == {:ok, "ja-JP"}
+    end
+
+    test "uses the source context :locale" do
+      context = %{arguments: %{}, source_context: %{locale: "fr"}, actor: nil}
+      assert Context.from_calculation(context) == {:ok, "fr"}
+    end
+
+    test "a calculation argument beats the source context" do
+      context = %{arguments: %{locale: "ja"}, source_context: %{locale: "fr"}, actor: nil}
+      assert Context.from_calculation(context) == {:ok, "ja"}
+    end
+
+    test "resolves the actor when :actor_locale is given" do
+      context = %{arguments: %{}, source_context: %{}, actor: %{lang: "es"}}
+
+      assert Context.from_calculation(context, actor_locale: {ActorLocale, :from_actor}) ==
+               {:ok, "es"}
+    end
+
+    test "falls back to the application default" do
+      context = %{arguments: %{}, source_context: %{}, actor: nil}
+      assert Context.from_calculation(context) == {:ok, "en"}
+    end
+
+    test "tolerates a context missing the optional keys" do
+      assert Context.from_calculation(%{}) == {:ok, "en"}
+    end
+  end
+
   defp without_default_locale(fun) do
     original = Application.get_env(:ash_localize, :default_locale)
     Application.delete_env(:ash_localize, :default_locale)

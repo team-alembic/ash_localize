@@ -93,6 +93,25 @@ defmodule AshLocalize.Context do
     end
   end
 
+  @doc """
+  Resolves the active locale from an `Ash.Resource.Calculation` context.
+
+  A convenience wrapper over `locale/2` for formatting calculations. It reads the
+  `:locale` calculation argument (arm 1), the calculation's `source_context` (arm 2),
+  and its `actor` (arm 3) from the supplied calculation context, then resolves exactly
+  as `locale/2` does. `opts` accepts `:actor_locale`, as for `locale/2`.
+  """
+  @spec from_calculation(map(), [option()]) :: {:ok, term()} | {:error, :no_locale}
+  def from_calculation(calculation_context, opts \\ []) when is_map(calculation_context) do
+    arguments = Map.get(calculation_context, :arguments) || %{}
+    source_context = Map.get(calculation_context, :source_context) || %{}
+    actor = Map.get(calculation_context, :actor)
+
+    source_context
+    |> Map.put(:actor, actor)
+    |> locale(Keyword.put_new(opts, :argument, Map.get(arguments, :locale)))
+  end
+
   defp from_argument(opts), do: opts[:argument]
 
   defp from_context(context), do: Map.get(context, :locale)

@@ -7,9 +7,10 @@ the CLDR-backed localization library for Elixir.
 typed attributes, locale-aware formatting as calculations, translatable string fields,
 and a single deterministic locale-resolution chain.
 
-> **Status: early development.** Phase 1 (foundations) is implemented — the `Locale`,
-> `Territory`, and `CurrencyCode` types, their matching validations, and
-> `AshLocalize.Context` locale resolution. See [`PLAN.md`](PLAN.md) for the full roadmap.
+> **Status: early development.** Phases 1–2 are implemented — the `Locale`,
+> `Territory`, and `CurrencyCode` types, their matching validations,
+> `AshLocalize.Context` locale resolution, and the locale-aware formatting
+> calculations. See [`PLAN.md`](PLAN.md) for the full roadmap.
 
 ## The ash_localize family
 
@@ -98,6 +99,34 @@ rationale.
 {:ok, "ja-JP"} = AshLocalize.Context.locale(%{locale: "ja-JP"}, [])
 "en" = AshLocalize.Context.locale!(%{}, [])
 ```
+
+## Formatting calculations
+
+Locale-aware formatting is exposed as Ash calculations. Each renders a source
+attribute through Localize, resolving the locale from the chain above.
+
+```elixir
+calculations do
+  calculate :formatted_quantity, :string,
+    {AshLocalize.Calculations.FormatNumber, field: :quantity}
+
+  calculate :formatted_price, :string,
+    {AshLocalize.Calculations.FormatCurrency, field: :price, currency: "USD"}
+
+  calculate :starts_on, :string,
+    {AshLocalize.Calculations.FormatDate, field: :start_date}
+
+  calculate :starts_at, :string,
+    {AshLocalize.Calculations.FormatDateTime, field: :start_at}
+
+  calculate :formatted_tags, :string,
+    {AshLocalize.Calculations.FormatList, field: :tags}
+end
+```
+
+`FormatCurrency` also accepts `currency_field:` to read the currency code per record
+from a sibling attribute. A `nil` source value yields `nil`. Add a `:locale` argument
+to a calculation to feed the explicit-argument arm of locale resolution.
 
 ## License
 
