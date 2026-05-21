@@ -1,0 +1,16 @@
+# Build artifacts and dependencies
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+
+# Crash dumps and generated archives
+erl_crash.dump
+*.ez
+ash_localize-*.tar
+
+# Editor / tooling
+/tmp/
+.elixir_ls/
+.lexical/
