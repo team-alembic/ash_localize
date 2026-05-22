@@ -19,3 +19,13 @@ All notable changes to this project are documented here.
     source attribute as a formatted string via Localize.
   - `AshLocalize.Context.from_calculation/2` — resolves the locale from an Ash
     calculation context.
+
+- Units of measure:
+  - `AshLocalize.Types.Unit` — a dimensioned-number `Ash.Type`: the base unit is type
+    metadata, the data layer stores a plain number, and the loaded value is a
+    `%Localize.Unit{}` quantity. Casts and converts from any dimensionally-compatible
+    unit; rejects incompatible ones.
+  - Sixteen per-category types — `Length`, `Mass`, `Speed`, `Acceleration`, `Force`,
+    `Volume`, `Area`, `Temperature`, `Energy`, `Power`, `Pressure`, `Angle`,
+    `Frequency`, `Digital`, `ElectricCurrent`, `Voltage` — plus a `Distance` alias.
+  - `AshLocalize.Calculations.FormatUnit` — locale-aware unit-of-measure formatting.

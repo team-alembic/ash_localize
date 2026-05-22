@@ -97,4 +97,22 @@ defmodule AshLocalize.IntegrationTest do
       assert loaded.formatted_tags == nil
     end
   end
+
+  describe "unit category types and FormatUnit" do
+    test "casts a quantity, converting to the base unit, and formats it" do
+      {:ok, profile} = create(%{delta_v: {2, "kilometer-per-second"}})
+
+      # stored as a plain number, reloaded as a unit-aware quantity
+      {:ok, reloaded} = Ash.get(Profile, profile.id)
+      assert %Localize.Unit{name: "meter-per-second"} = reloaded.delta_v
+
+      {:ok, loaded} = Ash.load(reloaded, [:formatted_delta_v])
+      assert loaded.formatted_delta_v == "2,000 meters per second"
+    end
+
+    test "rejects a dimensionally incompatible unit" do
+      assert {:error, %Ash.Error.Invalid{errors: errors}} = create(%{delta_v: {5, "kilogram"}})
+      assert Enum.any?(errors, &match?(%{field: :delta_v}, &1))
+    end
+  end
 end

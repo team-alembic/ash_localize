@@ -30,6 +30,8 @@ defmodule AshLocalize.Test.Profile do
     attribute :event_date, :date, public?: true
     attribute :event_at, :utc_datetime, public?: true
     attribute :tags, {:array, :string}, public?: true
+
+    attribute :delta_v, :speed, public?: true
   end
 
   validations do
@@ -63,5 +65,7 @@ defmodule AshLocalize.Test.Profile do
               {AshLocalize.Calculations.FormatDateTime, field: :event_at}
 
     calculate :formatted_tags, :string, {AshLocalize.Calculations.FormatList, field: :tags}
+
+    calculate :formatted_delta_v, :string, {AshLocalize.Calculations.FormatUnit, field: :delta_v}
   end
 end

@@ -7,10 +7,11 @@ the CLDR-backed localization library for Elixir.
 typed attributes, locale-aware formatting as calculations, translatable string fields,
 and a single deterministic locale-resolution chain.
 
-> **Status: early development.** Phases 1–2 are implemented — the `Locale`,
-> `Territory`, and `CurrencyCode` types, their matching validations,
-> `AshLocalize.Context` locale resolution, and the locale-aware formatting
-> calculations. See [`PLAN.md`](PLAN.md) for the full roadmap.
+> **Status: early development.** Phases 1–2 and the units-of-measure types are
+> implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
+> `AshLocalize.Context` locale resolution, the locale-aware formatting calculations,
+> and per-category unit types (`Speed`, `Mass`, `Length`, …). See [`PLAN.md`](PLAN.md)
+> for the full roadmap.
 
 ## The ash_localize family
 
@@ -127,6 +128,30 @@ end
 `FormatCurrency` also accepts `currency_field:` to read the currency code per record
 from a sibling attribute. A `nil` source value yields `nil`. Add a `:locale` argument
 to a calculation to feed the explicit-argument arm of locale resolution.
+
+## Units of measure
+
+Physical quantities are first-class. Each category is its own type — the unit is
+schema metadata, the column stores a plain number, and the loaded value is a
+`%Localize.Unit{}` that knows its unit.
+
+```elixir
+attribute :delta_v,  :speed                                    # base: meter-per-second
+attribute :altitude, :length                                   # base: meter
+attribute :dry_mass, :mass                                      # base: kilogram
+attribute :thrust,   :force                                     # base: newton
+attribute :cruise,   :speed, constraints: [base_unit: "knot"]   # override the base
+```
+
+Writes accept any dimensionally-compatible unit and convert — `delta_v: {7.8,
+"kilometer-per-second"}` stores `7800` (m/s). A value from the wrong category — a mass
+into a `:speed` — is rejected. Because the column is a plain number, `sum`, `avg`,
+sorting, and filtering run natively in the data layer.
+
+Categories: `length` (alias `distance`), `mass`, `speed`, `acceleration`, `force`,
+`volume`, `area`, `temperature`, `energy`, `power`, `pressure`, `angle`, `frequency`,
+`digital`, `electric_current`, `voltage`. The generic `:unit` type, given an explicit
+`base_unit`, covers anything else. Render with `AshLocalize.Calculations.FormatUnit`.
 
 ## License
 
