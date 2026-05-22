@@ -36,3 +36,17 @@ All notable changes to this project are documented here.
     optional `:localize_person_names` dependency.
   - `AshLocalize.Calculations.FormatPersonName` — locale-aware name formatting, with
     `:format`/`:usage`/`:formality`/`:order` pass-through.
+
+- Phone numbers:
+  - `AshLocalize.Types.PhoneNumber` — a string-backed (E.164) `Ash.Type`; casting
+    parses and validates via libphonenumber, the loaded value is a parsed
+    `%Localize.PhoneNumber.Number{}`. Requires the optional `:localize_phone_number`
+    dependency.
+  - `AshLocalize.Calculations.FormatPhone` — `:international`/`:national`/`:e164`/
+    `:rfc3966` formatting.
+
+- Postal addresses:
+  - `AshLocalize.Types.PostalAddress` — a map-backed `Ash.Type` wrapping
+    `%Localize.Address.Address{}`. Requires the optional `:localize_address` dependency.
+  - `AshLocalize.Calculations.FormatAddress` — locale-aware, multi-line address
+    formatting.

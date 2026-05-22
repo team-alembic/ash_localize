@@ -11,8 +11,8 @@ single deterministic locale-resolution chain.
 > **Status: early development.** Phases 1–2 and the units-of-measure types are
 > implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
 > `AshLocalize.Context` locale resolution, the locale-aware formatting calculations,
-> per-category unit types (`Speed`, `Mass`, `Length`, …), and a `PersonName` type. See
-> [`PLAN.md`](PLAN.md) for the full roadmap.
+> per-category unit types (`Speed`, `Mass`, `Length`, …), and the `PersonName`,
+> `PhoneNumber`, and `PostalAddress` types. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ## Types you should never reinvent
 
@@ -87,6 +87,18 @@ Stored as name parts (`given_name`, `surname`, `title`, …), rendered with cult
 correct order, formality, and addressing by `FormatPersonName` — `"Ada Lovelace"` or
 `"Dr. Lovelace"` depending on locale and usage. Needs the optional `localize_person_names`
 dependency.
+
+### Phone numbers and postal addresses
+
+```elixir
+attribute :contact_phone, :phone_number
+attribute :shipping_address, :postal_address
+```
+
+`:phone_number` parses and validates via libphonenumber, stores E.164, and formats as
+`:international` / `:national` / `:e164`. `:postal_address` holds CLDR address
+components and renders country-correct, multi-line labels. Both need optional
+dependencies — see [Optional integrations](#optional-integrations).
 
 ## Installation
 
@@ -187,7 +199,7 @@ compiled in only when your application also declares the upstream package:
 
 | Add to your deps                      | Unlocks                                              |
 | -------------------------------------- | ---------------------------------------------------- |
-| `localize_phonenumber`                 | the `:phone_number` type (libphonenumber)            |
+| `localize_phone_number` (git)          | the `:phone_number` type (libphonenumber)            |
 | `localize_address`                     | the `:postal_address` type (libpostal)               |
 | `localize_person_names`                | the `:person_name` type                              |
 | `localize_translate`                   | the `LocalizeTranslate` translation store            |

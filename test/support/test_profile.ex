@@ -33,6 +33,8 @@ defmodule AshLocalize.Test.Profile do
 
     attribute :delta_v, :speed, public?: true
     attribute :author_name, :person_name, public?: true
+    attribute :contact_phone, :phone_number, public?: true
+    attribute :shipping_address, :postal_address, public?: true
   end
 
   validations do
@@ -72,5 +74,13 @@ defmodule AshLocalize.Test.Profile do
     calculate :formatted_author,
               :string,
               {AshLocalize.Calculations.FormatPersonName, field: :author_name, usage: :referring}
+
+    calculate :formatted_phone,
+              :string,
+              {AshLocalize.Calculations.FormatPhone, field: :contact_phone}
+
+    calculate :formatted_address,
+              :string,
+              {AshLocalize.Calculations.FormatAddress, field: :shipping_address}
   end
 end
