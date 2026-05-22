@@ -2,6 +2,16 @@
 
 Draft for collaborator review. Reasonable assumptions noted inline; open questions for Kip listed at the end. Nothing here is locked.
 
+## Status
+
+Implemented and on `main`:
+
+- **Phase 1 — Foundations** (`a910c71`). `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context`; default config.
+- **Phase 2 — Formatting calculations** (`5deadfd`). `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`.
+- **Units of measure** (`224b8e1`). Brought forward from Phase 5 and reshaped — see below.
+
+The units design changed during implementation. Rather than one generic `Unit` type storing `{value, unit}`, units are **per-category types** (`Speed`, `Mass`, `Length`, …) over a shared engine: the unit is type metadata, the column stores a plain number in the category's base unit, and the loaded value is a `%Localize.Unit{}`. This keeps data-layer aggregates and sorting native, with no composite type. The sections below are updated to match.
+
 ## Context
 
 `ash_localize` is the Ash framework integration for [Localize](https://github.com/elixir-localize/localize), the next-generation CLDR-backed localization library for Elixir (successor to ex_cldr). Its job is to make Ash resources locale-aware at the resource level: CLDR-validated typed attributes, locale-aware formatting as calculations, translatable string fields, and clean composition with the broader elixir-localize ecosystem (`localize_web`, the `localize_*_inputs` LiveView family, `localize_translate`, `calendrical`).
@@ -44,7 +54,8 @@ lib/ash_localize/types/
   territory.ex
   currency_code.ex
   currency.ex                             # {amount, currency_code}
-  unit.ex                                 # {value, unit_code}
+  unit.ex                                 # dimensioned-number engine
+  unit_categories.ex                      # per-category types: Speed, Mass, …
   phone_number.ex                         # E.164 string + metadata
   person_name.ex                          # composite name parts
   postal_address.ex                       # via localize_address
@@ -94,11 +105,11 @@ Thin AshPostgres add-on. Installed via repo `installed_extensions/0`, `ash_money
 
 Provides:
 
-- Native composite-type lowering for `Currency`, `Unit`, `PhoneNumber`, `PersonName` where it unlocks query power. Default JSONB storage for `LocalizedString` and `PostalAddress`.
+- Native composite-type lowering for `Currency`, `PhoneNumber`, `PersonName` where it unlocks query power. Default JSONB storage for `LocalizedString` and `PostalAddress`. (`Unit` needs none — it is already a plain numeric column.)
 - Migration generator for the composite types.
 - `COLLATE "und-x-icu"`-style fragments for locale-aware sort (`sort: expr(localize_collate(name, "ja"))`).
 - JSONB query helpers for filtering `LocalizedString` attributes by locale.
-- Aggregate support for `Unit`-typed attributes (sum, with unit conversion). Currency aggregation is deferred to `ash_money` where applicable.
+- Currency aggregation is deferred to `ash_money` where applicable. Unit aggregation needs no add-on: a unit attribute stores a plain number in a fixed base unit, so `sum`/`avg` work natively on every data layer.
 
 No new primitives. Pure optimisation layer.
 
@@ -124,13 +135,13 @@ Each custom type is implemented as `Ash.Type` and routes casting/validation thro
 | `Territory`      | string                       | string                                |
 | `CurrencyCode`   | string                       | string                                |
 | `Currency`       | map `{amount, currency}`     | composite type                        |
-| `Unit`           | map `{value, unit}`          | composite type                        |
+| `Unit` (per category) | number, in the base unit | number (plain numeric column)         |
 | `PhoneNumber`    | string (E.164)               | composite type w/ metadata            |
 | `PersonName`     | map                          | composite type                        |
 | `PostalAddress`  | map                          | JSONB                                 |
 | `LocalizedString`| map `%{locale => string}`    | JSONB                                 |
 
-The default representation works on every data layer. Lowering to composite types is purely an optimisation that unlocks queryability and aggregates in AshPostgres.
+The default representation works on every data layer. Lowering to composite types is purely an optimisation that unlocks queryability and aggregates in AshPostgres. Units are the exception in the table above: a unit value is already a plain number in its base unit, so there is nothing to lower and aggregates are native everywhere.
 
 ## Locale resolution
 
@@ -245,7 +256,7 @@ Type registrations live in `ash_localize` core under `if Code.ensure_loaded?(...
 | LocalizedString filter      | JSONB query (helper)         | JSON1 query              | In-memory        |
 | Composite type storage      | Native (via add-on)          | JSON                     | Map              |
 | Locale-aware sort           | ICU collation fragment       | Best-effort, Elixir-side | Elixir-side      |
-| Aggregate sum-of-units      | Via add-on                   | Not supported            | Not supported    |
+| Aggregate sum-of-units      | Native (plain column)        | Native (plain column)    | Native           |
 | Migration generation        | Via add-on                   | n/a                      | n/a              |
 
 Core works on all four. `ash_localize_postgres` layers optimisations onto AshPostgres. SQLite support could ship as a small `ash_localize_sqlite` if demand emerges; deferred.
@@ -258,8 +269,8 @@ Phased by user-visible value, not by module dependency order.
 2. **Formatting calculations.** `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`. Locale-aware read-side formatting on top of the resolution chain.
 3. **Translations: `Embedded` store.** `LocalizedString` type + DSL + Embedded store + per-field localized calculations + form-friendly write argument handling. Minimum viable translation story.
 4. **Translations: `SiblingResource` store.** Spark transformer that generates the sister resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a smoother migration path to `LocalizeTranslate`.
-5. **Composite domain types.** `Unit`, `PhoneNumber`, `PersonName`, `PostalAddress`, with their format calcs.
-6. **`ash_localize_postgres`.** Composite lowering, collation fragments, JSONB helpers, unit aggregates, migration generator.
+5. **Composite domain types.** `PhoneNumber`, `PersonName`, `PostalAddress`, with their format calcs. (`Unit` — reshaped as per-category types — and `format_unit` are already done; see Status.)
+6. **`ash_localize_postgres`.** Composite lowering, collation fragments, JSONB helpers, migration generator.
 7. **`ash_localize_phoenix`.** `LocalePlug` + `<.ash_input>` + multi-locale form handling.
 8. **`LocalizeTranslate` adapter.** Lands once the upstream interface is stable.
 9. **ash_graphql / ash_json_api registrations.** Could move earlier if a consumer needs it.
