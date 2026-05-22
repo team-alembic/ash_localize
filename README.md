@@ -169,15 +169,22 @@ end
 from a sibling attribute. A `nil` source value yields `nil`. Add a `:locale` argument
 to a calculation to feed the explicit-argument arm of locale resolution.
 
-## The ash_localize family
+## Optional integrations
 
-| Package                 | Purpose                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `ash_localize`          | Data-layer-agnostic core: types, validations, formatting calculations, translations. |
-| `ash_localize_postgres` | AshPostgres optimisations: native composite types, ICU collation, JSONB helpers.     |
-| `ash_localize_phoenix`  | Phoenix/LiveView bridge: locale plug and form rendering.                             |
+`ash_localize` is a single package. Its heavier capabilities are optional dependencies,
+compiled in only when your application also declares the upstream package:
 
-Only `ash_localize` exists today.
+| Add to your deps                      | Unlocks                                              |
+| -------------------------------------- | ---------------------------------------------------- |
+| `localize_phonenumber`                 | the `:phone_number` type (libphonenumber)            |
+| `localize_address`                     | the `:postal_address` type (libpostal)               |
+| `localize_person_names`                | the `:person_name` type                              |
+| `localize_translate`                   | the `LocalizeTranslate` translation store            |
+| `ash_postgres` + `localize_units_sql`  | native composite types, ICU collation, migrations    |
+| `ash_phoenix` + `localize_web`         | the locale plug and `<.ash_input>` form helpers      |
+
+Without them, the core — locale/territory/currency/unit types, formatting, and
+validations — works on every Ash data layer with no extra weight.
 
 ## License
 

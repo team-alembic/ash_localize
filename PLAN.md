@@ -36,15 +36,18 @@ Naming follows upstream and Ash convention: `ash_localize` (US spelling, matchin
 
 ## Package layout
 
-Three packages, each shippable independently. Matches the `ash_authentication` / `ash_authentication_phoenix` split rather than the older single-package `ash_money` pattern. Justification:
+One package: `ash_localize`. The elixir-localize ecosystem is a hub — `localize` — surrounded by satellites (`localize_phonenumber`, `localize_address`, `localize_person_names`, `localize_translate`, `localize_units_sql`, `localize_web`, the `localize_*_inputs` family). `ash_localize` provides the Ash integration for the whole ecosystem from one package; the heavy satellites are **optional dependencies**.
 
-1. Localize has no SQL-helper companion analogous to `ex_money_sql`; bundling Postgres support into the core would mean writing and maintaining that plumbing inside the same package that's also the data-layer-agnostic core. Cleaner as a separate add-on.
-2. Most of what `ash_localize` does — type casting, validation, format calculations, locale context, translation lookup — is data-layer-agnostic. Splitting keeps the dep graph clean for AshSqlite / AshEts / AshMnesia users.
-3. The Phoenix/LiveView bridge has its own deps (`ash_phoenix`, `localize_web`, `localize_*_inputs`) and a different audience from headless API users.
+- `localize` is the only hard dependency — the CLDR hub (numbers, dates, units, lists, territories, languages, collation, MessageFormat), pure Elixir plus data.
+- Every other satellite, and `ash_postgres` / `ash_phoenix`, is declared `optional: true`: it — and its native baggage, such as libpostal or libphonenumber — is compiled in only when the consuming application also declares it. The application's dependency list is the feature switch.
 
-### `ash_localize` (core)
+Each optional integration sits behind a `Code.ensure_loaded?/1` compile guard, the pattern already used for the ash_graphql / ash_json_api registrations below, so the package compiles and runs with none present. An attribute or calculation needing an absent satellite fails loudly, naming the package to add.
 
-Data-layer-agnostic. Default storage for every custom type is plain primitives or maps. Works on AshPostgres, AshSqlite, AshEts, AshMnesia without modification. Postgres-native optimisations live in the add-on.
+This supersedes an earlier three-package split (`ash_localize` / `_postgres` / `_phoenix`). That split's main argument was that Localize had no SQL companion to lean on — but `localize_units_sql` exists, the Phoenix bridge is small, and optional dependencies keep one package, for a consumer who opts into nothing, as light as a split one.
+
+### Core
+
+Data-layer-agnostic. Default storage for every custom type is plain primitives, numbers, or maps. Works on AshPostgres, AshSqlite, AshEts, AshMnesia without modification.
 
 ```
 lib/ash_localize.ex                       # entry, config, version
@@ -87,6 +90,12 @@ lib/ash_localize/translations/
 lib/ash_localize/integrations/
   ash_graphql.ex                          # type registrations, guarded
   ash_json_api.ex                         # type registrations, guarded
+lib/ash_localize/postgres/                # optional: ash_postgres + localize_units_sql
+  composite_types.ex
+  migrations.ex
+lib/ash_localize/phoenix/                 # optional: ash_phoenix + localize_web
+  locale_plug.ex
+  form.ex
 ```
 
 Compile-time registration for short type names:
@@ -99,9 +108,9 @@ config :ash, :custom_types,
   phone_number: AshLocalize.Types.PhoneNumber
 ```
 
-### `ash_localize_postgres`
+### Postgres optimisations (optional)
 
-Thin AshPostgres add-on. Installed via repo `installed_extensions/0`, `ash_money` pattern.
+Active when `ash_postgres` and `localize_units_sql` are present; installed via repo `installed_extensions/0`, `ash_money` pattern.
 
 Provides:
 
@@ -113,9 +122,9 @@ Provides:
 
 No new primitives. Pure optimisation layer.
 
-### `ash_localize_phoenix`
+### Phoenix bridge (optional)
 
-Bridges Ash resources to the broader elixir-localize web/UI stack.
+Active when `ash_phoenix`, `localize_web`, and the `localize_*_inputs` family are present. Bridges Ash resources to the elixir-localize web/UI stack.
 
 Provides:
 
@@ -123,13 +132,13 @@ Provides:
 - `AshLocalize.Phoenix.Form` — helpers that render the appropriate `localize_inputs_*` component for a given Ash type. `<.ash_input field={f[:price]} />` inspects the type and emits `<.number_input>` with currency formatting; for `LocalizedString`, emits a tabbed multi-locale input.
 - `AshPhoenix.Form` integration for translated attributes — submitting a form with multiple locales produces the right changeset structure for the configured translation store.
 
-Depends on `ash_phoenix`, `localize_web`, and the `localize_inputs_*` packages.
+These components are guarded — absent those packages, the bridge compiles to nothing.
 
 ## Type system
 
 Each custom type is implemented as `Ash.Type` and routes casting/validation through Localize. Default storage representations:
 
-| Type             | Default storage              | PG-native (via add-on)                |
+| Type             | Default storage              | PG-native (optional)                  |
 |------------------|------------------------------|---------------------------------------|
 | `Locale`         | string                       | string                                |
 | `Territory`      | string                       | string                                |
@@ -220,7 +229,7 @@ Fallback chain semantics:
 
 ## Phoenix and LiveView
 
-Two integration points, both in `ash_localize_phoenix`. Composition over duplication — the `localize_inputs_*` family already ships a coherent, locale-aware component set with shared CSS tokens, Gettext catalogue, and structured validation errors. Building parallel components forks the visual and behavioural story.
+Two integration points, both in the optional Phoenix bridge. Composition over duplication — the `localize_inputs_*` family already ships a coherent, locale-aware component set with shared CSS tokens, Gettext catalogue, and structured validation errors. Building parallel components forks the visual and behavioural story.
 
 **1. Request locale → Ash context.**
 
@@ -254,12 +263,12 @@ Type registrations live in `ash_localize` core under `if Code.ensure_loaded?(...
 | Concern                     | AshPostgres                  | AshSqlite                | AshEts/Mnesia    |
 |-----------------------------|------------------------------|--------------------------|------------------|
 | LocalizedString filter      | JSONB query (helper)         | JSON1 query              | In-memory        |
-| Composite type storage      | Native (via add-on)          | JSON                     | Map              |
+| Composite type storage      | Native (optional)            | JSON                     | Map              |
 | Locale-aware sort           | ICU collation fragment       | Best-effort, Elixir-side | Elixir-side      |
 | Aggregate sum-of-units      | Native (plain column)        | Native (plain column)    | Native           |
-| Migration generation        | Via add-on                   | n/a                      | n/a              |
+| Migration generation        | Built-in (Postgres)          | n/a                      | n/a              |
 
-Core works on all four. `ash_localize_postgres` layers optimisations onto AshPostgres. SQLite support could ship as a small `ash_localize_sqlite` if demand emerges; deferred.
+Works on all four. The optional Postgres integration layers its optimisations onto AshPostgres. Deeper SQLite-specific support is deferred until there is demand.
 
 ## Build phases
 
@@ -270,8 +279,8 @@ Phased by user-visible value, not by module dependency order.
 3. **Translations: `Embedded` store.** `LocalizedString` type + DSL + Embedded store + per-field localized calculations + form-friendly write argument handling. Minimum viable translation story.
 4. **Translations: `SiblingResource` store.** Spark transformer that generates the sister resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a smoother migration path to `LocalizeTranslate`.
 5. **Composite domain types.** `PhoneNumber`, `PersonName`, `PostalAddress`, with their format calcs. (`Unit` — reshaped as per-category types — and `format_unit` are already done; see Status.)
-6. **`ash_localize_postgres`.** Composite lowering, collation fragments, JSONB helpers, migration generator.
-7. **`ash_localize_phoenix`.** `LocalePlug` + `<.ash_input>` + multi-locale form handling.
+6. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_units_sql`.
+7. **Phoenix bridge.** `LocalePlug` + `<.ash_input>` + multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web`.
 8. **`LocalizeTranslate` adapter.** Lands once the upstream interface is stable.
 9. **ash_graphql / ash_json_api registrations.** Could move earlier if a consumer needs it.
 
@@ -283,7 +292,7 @@ Phases 1–3 are the minimum useful set. Phases 4–7 are production-grade.
 
 1. **`localize_translate` interface shape.** Plan assumes a public behaviour we can adapter against. If the surface is purely Ecto-schema-coupled, the `LocalizeTranslate` adapter is AshPostgres-only and we document that. `Embedded` and `SiblingResource` remain available everywhere else. Is the behaviour-shaped interface workable, or is the Ecto coupling permanent?
 2. **MessageFormat 2 catalogue conventions.** When `ash_localize` emits MF2-formatted strings (default validation error messages, format-calc captions), what key/namespace should they live under in a catalogue? Plan assumes `ash_localize.<context>.<key>`; happy to align with whatever `localize_translate` uses.
-3. **Composite-type stability in PG.** Native PG composite types have historically been rough in Ecto. AshPostgres has improved here; worth confirming current state before committing the PG add-on to native composites for `PhoneNumber` / `PersonName` rather than JSONB.
+3. **Composite-type stability in PG.** Native PG composite types have historically been rough in Ecto. AshPostgres has improved here; worth confirming current state before committing the Postgres integration to native composites for `PhoneNumber` / `PersonName` rather than JSONB.
 4. **Elixir-side collator.** Does Localize expose (or plan to expose) a stable locale-aware string comparator usable from SQLite/ETS sort paths, or do we delegate to `:unicode_util`?
 5. **The "unpublished" translation work.** Whether that's a new iteration of `localize_translate`, a sibling, or something else — affects which package we adapter against in phase 8.
 
@@ -291,9 +300,9 @@ Phases 1–3 are the minimum useful set. Phases 4–7 are production-grade.
 
 - `localize_translate` is the intended upstream translation store; `ash_localize` ships its own behaviour and adapter rather than coupling directly. Two non-upstream stores (`Embedded`, `SiblingResource`) provide fallback coverage.
 - `Embedded` is the recommended default store: simplest mental model, one fetch returns all translations, works on every data layer. `SiblingResource` is opt-in for apps that genuinely need workflow, filter-by-translated-text in Ash expressions, or cleaner alignment with `LocalizeTranslate`. Caveat: if most users end up migrating to `LocalizeTranslate`-backed storage, `Embedded`-default users will face a data-shape migration. Worth tracking; acceptable trade for simplicity now.
-- Three packages: `ash_localize`, `ash_localize_postgres`, `ash_localize_phoenix`. Modern ecosystem split.
+- One package, `ash_localize`. Satellites (`localize_address`, `localize_phonenumber`, …) and the Postgres / Phoenix integrations are optional dependencies, guarded so they cost nothing when absent.
 - LiveView story is composition, not duplication: `localize_inputs_*` is dispatched from a single `<.ash_input>` helper.
 - Default `LocalizedString` GraphQL shape is "object with per-locale fields"; configurable to JSON scalar.
 - Locale resolution chain has exactly four arms. Actor inference is opt-in. Process dict is excluded. Tenant inference is excluded.
-- Composite types default to map/JSON storage; Postgres-native lowering is a pure optimisation in the add-on.
+- Composite types default to map/JSON storage; Postgres-native lowering is a pure optimisation in the optional Postgres integration.
 - Naming: `ash_localize`, US spelling, matching upstream.
