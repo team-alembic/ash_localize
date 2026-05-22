@@ -35,6 +35,7 @@ defmodule AshLocalize.MixProject do
     [
       {:ash, "~> 3.5"},
       {:localize, "~> 0.37"},
+      {:localize_person_names, "~> 0.1", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}

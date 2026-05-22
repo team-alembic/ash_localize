@@ -29,3 +29,10 @@ All notable changes to this project are documented here.
     `Volume`, `Area`, `Temperature`, `Energy`, `Power`, `Pressure`, `Angle`,
     `Frequency`, `Digital`, `ElectricCurrent`, `Voltage` — plus a `Distance` alias.
   - `AshLocalize.Calculations.FormatUnit` — locale-aware unit-of-measure formatting.
+
+- Person names:
+  - `AshLocalize.Types.PersonName` — a map-backed `Ash.Type` wrapping
+    `%Localize.PersonName{}`; stored as name parts, loaded as a struct. Requires the
+    optional `:localize_person_names` dependency.
+  - `AshLocalize.Calculations.FormatPersonName` — locale-aware name formatting, with
+    `:format`/`:usage`/`:formality`/`:order` pass-through.

@@ -11,8 +11,8 @@ single deterministic locale-resolution chain.
 > **Status: early development.** Phases 1–2 and the units-of-measure types are
 > implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
 > `AshLocalize.Context` locale resolution, the locale-aware formatting calculations,
-> and per-category unit types (`Speed`, `Mass`, `Length`, …). See [`PLAN.md`](PLAN.md)
-> for the full roadmap.
+> per-category unit types (`Speed`, `Mass`, `Length`, …), and a `PersonName` type. See
+> [`PLAN.md`](PLAN.md) for the full roadmap.
 
 ## Types you should never reinvent
 
@@ -76,6 +76,17 @@ Each is a plain `Ash.Type` storing a string, with casting and validation routed 
 Localize. Casting normalises input to CLDR's canonical form (`"en-us"` → `"en-US"`) and
 rejects values CLDR does not recognise — both malformed strings and well-formed but
 unknown subtags.
+
+### Person names
+
+```elixir
+attribute :author_name, :person_name
+```
+
+Stored as name parts (`given_name`, `surname`, `title`, …), rendered with culturally
+correct order, formality, and addressing by `FormatPersonName` — `"Ada Lovelace"` or
+`"Dr. Lovelace"` depending on locale and usage. Needs the optional `localize_person_names`
+dependency.
 
 ## Installation
 

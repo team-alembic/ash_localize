@@ -115,4 +115,26 @@ defmodule AshLocalize.IntegrationTest do
       assert Enum.any?(errors, &match?(%{field: :delta_v}, &1))
     end
   end
+
+  describe "the PersonName type and FormatPersonName" do
+    test "casts a name map, stores it, and formats it" do
+      {:ok, profile} =
+        create(%{author_name: %{given_name: "Ada", surname: "Lovelace", title: "Dr."}})
+
+      assert %Localize.PersonName{given_name: "Ada"} = profile.author_name
+
+      {:ok, reloaded} = Ash.get(Profile, profile.id)
+      assert %Localize.PersonName{given_name: "Ada", surname: "Lovelace"} = reloaded.author_name
+
+      {:ok, loaded} = Ash.load(reloaded, [:formatted_author])
+      assert loaded.formatted_author == "Ada Lovelace"
+    end
+
+    test "rejects a name without a given name" do
+      assert {:error, %Ash.Error.Invalid{errors: errors}} =
+               create(%{author_name: %{surname: "Valim"}})
+
+      assert Enum.any?(errors, &match?(%{field: :author_name}, &1))
+    end
+  end
 end

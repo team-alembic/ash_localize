@@ -32,6 +32,7 @@ defmodule AshLocalize.Test.Profile do
     attribute :tags, {:array, :string}, public?: true
 
     attribute :delta_v, :speed, public?: true
+    attribute :author_name, :person_name, public?: true
   end
 
   validations do
@@ -67,5 +68,9 @@ defmodule AshLocalize.Test.Profile do
     calculate :formatted_tags, :string, {AshLocalize.Calculations.FormatList, field: :tags}
 
     calculate :formatted_delta_v, :string, {AshLocalize.Calculations.FormatUnit, field: :delta_v}
+
+    calculate :formatted_author,
+              :string,
+              {AshLocalize.Calculations.FormatPersonName, field: :author_name, usage: :referring}
   end
 end
