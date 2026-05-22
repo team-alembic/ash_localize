@@ -6,11 +6,13 @@ Draft for collaborator review. Reasonable assumptions noted inline; open questio
 
 Implemented and on `main`:
 
-- **Phase 1 — Foundations** (`a910c71`). `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context`; default config.
-- **Phase 2 — Formatting calculations** (`5deadfd`). `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`.
-- **Units of measure** (`224b8e1`). Brought forward from Phase 5 and reshaped — see below.
+- **Foundations** (`a910c71`). `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context`; default config.
+- **Formatting calculations** (`5deadfd`). `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`.
+- **Composite domain types.** `Unit` (`224b8e1`), `PersonName` (`eb55a58`), `PhoneNumber` and `PostalAddress` (`2b02af1`) — each with its formatting calculation.
 
-The units design changed during implementation. Rather than one generic `Unit` type storing `{value, unit}`, units are **per-category types** (`Speed`, `Mass`, `Length`, …) over a shared engine: the unit is type metadata, the column stores a plain number in the category's base unit, and the loaded value is a `%Localize.Unit{}`. This keeps data-layer aggregates and sorting native, with no composite type. The sections below are updated to match.
+Still to come: the optional Postgres and Phoenix integrations, the GraphQL / JSON:API registrations, and translations — sequenced last by choice. See Build phases.
+
+Two designs changed during implementation. **Units** became **per-category types** (`Speed`, `Mass`, `Length`, …) over a shared engine, rather than one generic `Unit` storing `{value, unit}`: the unit is type metadata, the column stores a plain number in the base unit, and the loaded value is a `%Localize.Unit{}` — keeping data-layer aggregates native. And the **package layout** collapsed from three packages to one with optional dependencies. The sections below reflect both.
 
 ## Context
 
@@ -272,19 +274,22 @@ Works on all four. The optional Postgres integration layers its optimisations on
 
 ## Build phases
 
-Phased by user-visible value, not by module dependency order.
+Phased by user-visible value. Translations are deliberately sequenced last.
 
-1. **Foundations.** `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context.locale/2`; default config. Smallest useful slice; immediately unblocks resources that need validated locale-shaped fields.
-2. **Formatting calculations.** `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`. Locale-aware read-side formatting on top of the resolution chain.
-3. **Translations: `Embedded` store.** `LocalizedString` type + DSL + Embedded store + per-field localized calculations + form-friendly write argument handling. Minimum viable translation story.
-4. **Translations: `SiblingResource` store.** Spark transformer that generates the sister resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a smoother migration path to `LocalizeTranslate`.
-5. **Composite domain types.** `PhoneNumber`, `PersonName`, `PostalAddress`, with their format calcs. (`Unit` — reshaped as per-category types — and `format_unit` are already done; see Status.)
-6. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_units_sql`.
-7. **Phoenix bridge.** `LocalePlug` + `<.ash_input>` + multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web`.
-8. **`LocalizeTranslate` adapter.** Lands once the upstream interface is stable.
-9. **ash_graphql / ash_json_api registrations.** Could move earlier if a consumer needs it.
+**Done** — see Status for commits:
 
-Phases 1–3 are the minimum useful set. Phases 4–7 are production-grade.
+1. **Foundations.** `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context.locale/2`; default config.
+2. **Formatting calculations.** `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`.
+3. **Composite domain types.** `Unit` (per-category), `PhoneNumber`, `PersonName`, `PostalAddress`, each with its format calculation.
+
+**Remaining**, in order:
+
+4. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_units_sql`.
+5. **Phoenix bridge.** `LocalePlug` + `<.ash_input>` + multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web`.
+6. **ash_graphql / ash_json_api registrations.** Guarded type registrations for projects using those extensions.
+7. **Translations: `Embedded` store.** `LocalizedString` type + Spark DSL extension + Embedded store + per-field localized calculations + form-friendly write handling. The minimum viable translation story.
+8. **Translations: `SiblingResource` store.** Spark transformer that generates the sister translations resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a cleaner migration path to `LocalizeTranslate`.
+9. **`LocalizeTranslate` adapter.** Lands once the upstream interface is stable.
 
 ## Open questions for Kip
 
@@ -294,7 +299,7 @@ Phases 1–3 are the minimum useful set. Phases 4–7 are production-grade.
 2. **MessageFormat 2 catalogue conventions.** When `ash_localize` emits MF2-formatted strings (default validation error messages, format-calc captions), what key/namespace should they live under in a catalogue? Plan assumes `ash_localize.<context>.<key>`; happy to align with whatever `localize_translate` uses.
 3. **Composite-type stability in PG.** Native PG composite types have historically been rough in Ecto. AshPostgres has improved here; worth confirming current state before committing the Postgres integration to native composites for `PhoneNumber` / `PersonName` rather than JSONB.
 4. **Elixir-side collator.** Does Localize expose (or plan to expose) a stable locale-aware string comparator usable from SQLite/ETS sort paths, or do we delegate to `:unicode_util`?
-5. **The "unpublished" translation work.** Whether that's a new iteration of `localize_translate`, a sibling, or something else — affects which package we adapter against in phase 8.
+5. **The "unpublished" translation work.** Whether that's a new iteration of `localize_translate`, a sibling, or something else — affects which package the `LocalizeTranslate` adapter targets.
 
 ## Assumptions made to keep moving
 
