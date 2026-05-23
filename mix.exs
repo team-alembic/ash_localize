@@ -38,6 +38,7 @@ defmodule AshLocalize.MixProject do
       {:localize_person_names, "~> 0.1", optional: true},
       {:localize_address, "~> 0.2", optional: true},
       {:localize_phone_number, github: "elixir-localize/localize_phonenumber", optional: true},
+      {:igniter, "~> 0.8", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}

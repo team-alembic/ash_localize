@@ -58,5 +58,15 @@ All notable changes to this project are documented here.
     anything registered with `Localize.Unit.CustomRegistry`) with a one-line `use`.
   - `AshLocalize.UnitType.defunit/2` — a `defunit Name, base_unit: "..."` shortcut
     that expands to the `defmodule … use AshLocalize.UnitType, …` form.
+
+- Igniter installers:
+  - `mix igniter.install ash_localize` — sets `config :ash_localize, default_locale`,
+    registers the scalar and unit-category short names, and detects any optional
+    satellites (`localize_person_names`, `localize_phone_number`, `localize_address`)
+    already in the consumer's deps and registers their types too.
+  - `mix ash_localize.gen.unit_type ModuleName --base-unit ... [--category ...]
+    [--short-name foo]` — scaffolds a custom unit type via `AshLocalize.UnitType`
+    and optionally registers a short name.
+  - `igniter` is now an optional dependency.
   - [Custom units guide](documentation/custom_units.md) covers the three patterns
     (compound units, reusable custom types, `CustomRegistry`).

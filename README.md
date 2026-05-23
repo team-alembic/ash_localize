@@ -102,6 +102,15 @@ dependencies — see [Optional integrations](#optional-integrations).
 
 ## Installation
 
+With [Igniter](https://hexdocs.pm/igniter) — adds the dep and writes the config
+for you, detecting any optional satellite packages already in your deps:
+
+```bash
+mix igniter.install ash_localize
+```
+
+Or manually — add the dep:
+
 ```elixir
 def deps do
   [
@@ -110,8 +119,9 @@ def deps do
 end
 ```
 
-Configure an application default locale. It is the final arm of locale resolution;
-without it, resolution reports `{:error, :no_locale}` rather than a silent `nil`:
+Then configure an application default locale. It is the final arm of locale
+resolution; without it, resolution reports `{:error, :no_locale}` rather than a
+silent `nil`:
 
 ```elixir
 config :ash_localize, default_locale: "en"
