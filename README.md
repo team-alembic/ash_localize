@@ -3,10 +3,8 @@
 Ash Framework integration for [Localize](https://github.com/elixir-localize/localize),
 the CLDR-backed localization library for Elixir.
 
-`ash_localize` gives Ash resources the locale-aware, CLDR-validated types every
-application needs and most hand-roll badly — locales, territories, currency codes, and
-units of measure — together with locale-aware formatting, translatable fields, and a
-single deterministic locale-resolution chain.
+`ash_localize` gives Ash resources the locale-aware, CLDR-validated types every business
+application needs. locales, territories, currency codes, and units of measure, together with locale-aware formatting, translatable fields, and a single deterministic locale-resolution chain.
 
 > **Status: early development.** Phases 1–2 and the units-of-measure types are
 > implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
@@ -21,12 +19,12 @@ validates, a `currency` column that accepts `"dollars"`, a distance stored as a 
 float with the unit hidden in a comment. `ash_localize` replaces them with real Ash
 types: CLDR-validated, canonicalised, and working on every data layer.
 
-### Units of measure
+### Units of Measure
 
-Physical quantities are first-class. Each category is its own type — the unit is
+Physical quantities are first-class. Each category is its own type: the unit is
 schema metadata, the column stores a plain number, and the loaded value is a
-`%Localize.Unit{}` that knows its unit. The same handful of types span a recipe app
-and a launch vehicle:
+`%Localize.Unit{}` that knows its unit. The same handful of types span recipe,
+rockets and industrial robots, and everything in between:
 
 ```elixir
 # Everyday quantities
@@ -55,7 +53,9 @@ sorting, and filtering run natively in the data layer.
 Categories: `length` (alias `distance`), `mass`, `speed`, `acceleration`, `force`,
 `volume`, `area`, `temperature`, `energy`, `power`, `pressure`, `angle`, `frequency`,
 `digital`, `electric_current`, `voltage`. The generic `:unit` type, given an explicit
-`base_unit`, covers anything else.
+`base_unit`, covers anything else — and `AshLocalize.UnitType` lets you define your
+own reusable types (*jerk*, specific impulse, anything you want). See the
+[Custom units guide](documentation/custom_units.md).
 
 ### Locales, territories, and currency codes
 
@@ -197,14 +197,14 @@ to a calculation to feed the explicit-argument arm of locale resolution.
 `ash_localize` is a single package. Its heavier capabilities are optional dependencies,
 compiled in only when your application also declares the upstream package:
 
-| Add to your deps                      | Unlocks                                              |
-| -------------------------------------- | ---------------------------------------------------- |
-| `localize_phone_number` (git)          | the `:phone_number` type (libphonenumber)            |
-| `localize_address`                     | the `:postal_address` type (libpostal)               |
-| `localize_person_names`                | the `:person_name` type                              |
-| `localize_translate`                   | the `LocalizeTranslate` translation store            |
-| `ash_postgres` + `localize_units_sql`  | native composite types, ICU collation, migrations    |
-| `ash_phoenix` + `localize_web`         | the locale plug and `<.ash_input>` form helpers      |
+| Add to your deps                      | Unlocks                                           |
+| ------------------------------------- | ------------------------------------------------- |
+| `localize_phone_number` (git)         | the `:phone_number` type (libphonenumber)         |
+| `localize_address`                    | the `:postal_address` type (libpostal)            |
+| `localize_person_names`               | the `:person_name` type                           |
+| `localize_translate`                  | the `LocalizeTranslate` translation store         |
+| `ash_postgres` + `localize_units_sql` | native composite types, ICU collation, migrations |
+| `ash_phoenix` + `localize_web`        | the locale plug and `<.ash_input>` form helpers   |
 
 Without them, the core — locale/territory/currency/unit types, formatting, and
 validations — works on every Ash data layer with no extra weight.

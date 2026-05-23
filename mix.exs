@@ -48,7 +48,7 @@ defmodule AshLocalize.MixProject do
     [
       name: "ash_localize",
       licenses: ["Apache-2.0"],
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG*),
+      files: ~w(lib documentation .formatter.exs mix.exs README* LICENSE* CHANGELOG*),
       links: %{
         "GitHub" => @source_url,
         "Localize" => "https://github.com/elixir-localize/localize"
@@ -60,7 +60,7 @@ defmodule AshLocalize.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
-      extras: ["README.md", "CHANGELOG.md"]
+      extras: ["README.md", "documentation/custom_units.md", "CHANGELOG.md"]
     ]
   end
 end

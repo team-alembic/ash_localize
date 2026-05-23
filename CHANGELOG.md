@@ -50,3 +50,13 @@ All notable changes to this project are documented here.
     `%Localize.Address.Address{}`. Requires the optional `:localize_address` dependency.
   - `AshLocalize.Calculations.FormatAddress` — locale-aware, multi-line address
     formatting.
+
+- Extensibility:
+  - `AshLocalize.UnitType` — the macro that generates the 16 built-in per-category
+    unit types is now public, with `:category` optional. Users can define their own
+    dimensioned types (compound units such as *jerk* / `meter-per-cubic-second`, or
+    anything registered with `Localize.Unit.CustomRegistry`) with a one-line `use`.
+  - `AshLocalize.UnitType.defunit/2` — a `defunit Name, base_unit: "..."` shortcut
+    that expands to the `defmodule … use AshLocalize.UnitType, …` form.
+  - [Custom units guide](documentation/custom_units.md) covers the three patterns
+    (compound units, reusable custom types, `CustomRegistry`).
