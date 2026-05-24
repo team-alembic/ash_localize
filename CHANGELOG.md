@@ -68,5 +68,24 @@ All notable changes to this project are documented here.
     [--short-name foo]` — scaffolds a custom unit type via `AshLocalize.UnitType`
     and optionally registers a short name.
   - `igniter` is now an optional dependency.
+
+- Numeric semantic types (Tier 1 — completes the numeric-types modelling):
+  - `AshLocalize.Types.Count` — non-negative integer + `:of` semantic tag, plus
+    `:min` / `:max` / `:zero?` constraints. `AshLocalize.Calculations.FormatCount`
+    renders plural-aware via MF2 with simple `:if_zero` / `:one` / `:other` …
+    forms or a raw `:template`. `:of` is the key the future translation catalogue
+    will use to drive locale-specific templates (Japanese counter words, etc.).
+  - `AshLocalize.Types.Ordinal` + `FormatOrdinal` — RBNF: `1` → `"1st"` (en),
+    `"1er"` (fr), `"第1"` (ja).
+  - `AshLocalize.Types.Percentage` + `FormatPercent` — `Decimal`-backed, bounded
+    `0..1` by default; renders `"75%"`.
+  - `AshLocalize.Types.Ratio` + `FormatRatio` — `Decimal` 0..1; renders the vulgar
+    fraction `"3⁄4"`.
+  - `AshLocalize.Types.Score` + `FormatScore` — open-bounded `Decimal` score with
+    optional `:min` / `:max`; renders with locale-correct separators.
+  - `AshLocalize.Types.Rating` + `FormatRating` — `Decimal` with required `:out_of`;
+    renders `"X / Y"` by default or a plural-aware sentence with MF2 forms.
+  - Short names (`:count`, `:ordinal`, `:percentage`, `:ratio`, `:score`,
+    `:rating`) registered automatically by `mix igniter.install ash_localize`.
   - [Custom units guide](documentation/custom_units.md) covers the three patterns
     (compound units, reusable custom types, `CustomRegistry`).

@@ -9,8 +9,10 @@ application needs. locales, territories, currency codes, and units of measure, t
 > **Status: early development.** Phases 1–2 and the units-of-measure types are
 > implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
 > `AshLocalize.Context` locale resolution, the locale-aware formatting calculations,
-> per-category unit types (`Speed`, `Mass`, `Length`, …), and the `PersonName`,
-> `PhoneNumber`, and `PostalAddress` types. See [`PLAN.md`](PLAN.md) for the roadmap.
+> per-category unit types (`Speed`, `Mass`, `Length`, …), the `PersonName`,
+> `PhoneNumber`, and `PostalAddress` types, and the numeric semantic types
+> (`Count`, `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`). See
+> [`PLAN.md`](PLAN.md) for the roadmap.
 
 ## Types you should never reinvent
 
@@ -87,6 +89,25 @@ Stored as name parts (`given_name`, `surname`, `title`, …), rendered with cult
 correct order, formality, and addressing by `FormatPersonName` — `"Ada Lovelace"` or
 `"Dr. Lovelace"` depending on locale and usage. Needs the optional `localize_person_names`
 dependency.
+
+### Numeric semantic types
+
+Numbers carry meaning. These types capture *what* a number is — a count of something,
+a rank, a percentage — and render it locale-correctly:
+
+```elixir
+attribute :comment_count, :count, constraints: [of: :comments]
+attribute :rank,          :ordinal
+attribute :completion,    :percentage              # 0.75 → "75%"
+attribute :compression,   :ratio                   # 0.75 → "3⁄4"
+attribute :priority,      :score, constraints: [min: 0, max: 100]
+attribute :customer_rating, :rating, constraints: [out_of: 5, of: :stars]
+```
+
+Each pairs with a `Format*` calculation. `FormatCount` is plural-aware via MF2 — the
+same template can render `"No comments"` / `"1 comment"` / `"27 comments"` in English
+and `"3件のコメント"` in Japanese; the `:of` tag is the key the future translation
+catalogue will use to pick locale-specific templates and counter words.
 
 ### Phone numbers and postal addresses
 
