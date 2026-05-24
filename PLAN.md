@@ -231,25 +231,71 @@ Fallback chain semantics:
 
 ## Phoenix and LiveView
 
-Two integration points, both in the optional Phoenix bridge. Composition over duplication — the `localize_inputs_*` family already ships a coherent, locale-aware component set with shared CSS tokens, Gettext catalogue, and structured validation errors. Building parallel components forks the visual and behavioural story.
+The bridge is three pieces, all inside the optional Phoenix integration. Composition over duplication — the `localize_inputs_*` family already ships a coherent, locale-aware component set with shared CSS tokens, Gettext catalogue, and structured validation errors. Parallel components would fork the visual and behavioural story.
 
-**1. Request locale → Ash context.**
+### Upstream readiness
+
+The full ecosystem the bridge depends on is published and recent (May 2026):
+
+| Package                    | Hex    | Provides                                                                                |
+|----------------------------|--------|-----------------------------------------------------------------------------------------|
+| `ash_phoenix`              | 2.3.22 | Ash ↔ Phoenix glue, `AshPhoenix.Form`                                                   |
+| `localize_web`             | 0.7.0  | HTTP locale negotiation plug, localized routes, HTML helpers                            |
+| `localize_inputs_core`     | 0.1.0  | Shared CSS tokens, Gettext backend, JS bootstrap                                        |
+| `localize_datetime_inputs` | 0.1.2  | `<.date_input>`, `<.date_range_input>`, `<.date_range_picker>`, multi-calendar support  |
+| `localize_number_inputs`   | 0.1.2  | `<.number_input>` (decimal/integer), `<.unit_input>` (number + UoM picker)              |
+
+There is no `localize_inputs` umbrella on Hex — the family ships as the per-flavour packages above.
+
+### 1. Request locale → Ash context
 
 ```elixir
 plug AshLocalize.Phoenix.LocalePlug
 ```
 
-Wraps `localize_web`'s negotiation plug and writes the resolved locale into Ash context for downstream operations.
+Wraps `localize_web`'s negotiation plug and copies the resolved locale into Ash context (`Ash.set_context(%{locale: ...})`) for downstream operations. Arm 2 of the locale resolution chain then sees it on every action in the request.
 
-**2. Form rendering.**
+### 2. `<.ash_input>` dispatcher
+
+One component reads the Ash type of a form field and emits the right widget. The form author writes one component; the locale-correct input appears.
 
 ```heex
-<.ash_input field={@form[:price]} />          <!-- Currency → number_input w/ currency formatting -->
-<.ash_input field={@form[:event_date]} />     <!-- Date → date_input -->
-<.ash_input field={@form[:description]} />    <!-- LocalizedString → tabbed multi-locale input -->
+<.simple_form for={@form}>
+  <.ash_input field={@form[:delta_v]} />          <!-- :speed → <.unit_input>           -->
+  <.ash_input field={@form[:completion]} />       <!-- :percentage → <.number_input>    -->
+  <.ash_input field={@form[:start_at]} />         <!-- :utc_datetime → datetime input   -->
+  <.ash_input field={@form[:billing_currency]} /> <!-- :currency_code → currency select -->
+  <.ash_input field={@form[:description]} />      <!-- LocalizedString → tabs           -->
+</.simple_form>
 ```
 
-The renderer is a thin component that reads the Ash type from the form field and delegates to the matching `localize_inputs_*` component. For `LocalizedString`, we render one input per configured locale with a tab UI built from `localize_inputs_core`'s tokens; the changeset gathers all submitted locales.
+Dispatch table:
+
+| Ash type                                       | Component                                  | Source                     |
+|------------------------------------------------|--------------------------------------------|----------------------------|
+| `:unit`, `:speed`, `:mass`, `:length`, …       | `<.unit_input>`                            | `localize_number_inputs`   |
+| `:count`, `:ordinal`                           | `<.number_input>` (integer)                | `localize_number_inputs`   |
+| `:percentage`, `:ratio`, `:score`, `:rating`   | `<.number_input>` (decimal)                | `localize_number_inputs`   |
+| `:date`, `:utc_datetime`, `:naive_datetime`    | date / datetime input                      | `localize_datetime_inputs` |
+| `:locale`, `:territory`, `:currency_code`      | select on CLDR data (flags / symbols)      | **`ash_localize` builds**  |
+| `:phone_number`                                | `<input type="tel">` with E.164 hint       | **`ash_localize` builds**  |
+| `:postal_address`                              | per-country address form (template-driven) | **`ash_localize` builds**  |
+| `:person_name`                                 | per-locale name-field order                | **`ash_localize` builds**  |
+| `LocalizedString` *(Phase 7)*                  | tabbed multi-locale input                  | **`ash_localize` builds**  |
+
+Six rows are upstream-covered; six are small components `ash_localize` builds on top of `localize_inputs_core`'s tokens; two need Phase 7 first.
+
+### 3. `AshPhoenix.Form` for multi-locale fields (Phase 7)
+
+For `LocalizedString` fields, the form gathers per-locale values via a tabbed input; on submit, the changeset structure matches the configured translation store. Lands when translations land.
+
+### Stages
+
+Three commit-sized stages, in order:
+
+1. **Plug + dispatcher skeleton.** `LocalePlug`; `<.ash_input>` for the upstream-covered types (units, numbers, dates). The Phoenix/LiveView test setup (`Phoenix.LiveViewTest`, a thin test endpoint) arrives with this stage and unblocks the rest.
+2. **Selects and component-light types.** Locale, territory, and currency_code selects (CLDR data with flags and display names); `<input type="tel">` for phone; basic `:postal_address` and `:person_name` field forms.
+3. **Multi-locale forms.** Tabbed `<.ash_input>` for `LocalizedString` and `AshPhoenix.Form` write handling. Depends on Phase 7.
 
 ## GraphQL and JSON:API
 
@@ -285,7 +331,7 @@ Phased by user-visible value. Translations are deliberately sequenced last.
 **Remaining**, in order:
 
 4. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_units_sql`.
-5. **Phoenix bridge.** `LocalePlug` + `<.ash_input>` + multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web`.
+5. **Phoenix bridge** (three stages). `LocalePlug`, `<.ash_input>` dispatcher, and multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web` + the `localize_*_inputs` family. See Phoenix and LiveView for the stage breakdown.
 6. **ash_graphql / ash_json_api registrations.** Guarded type registrations for projects using those extensions.
 7. **Translations: `Embedded` store.** `LocalizedString` type + Spark DSL extension + Embedded store + per-field localized calculations + form-friendly write handling. The minimum viable translation story.
 8. **Translations: `SiblingResource` store.** Spark transformer that generates the sister translations resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a cleaner migration path to `LocalizeTranslate`.
