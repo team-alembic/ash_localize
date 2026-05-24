@@ -12,6 +12,8 @@ defmodule Mix.Tasks.AshLocalize.InstallTest do
 
     assert diff =~ ~s(default_locale: "en")
     assert diff =~ "AshLocalize.Types.Locale"
+    assert diff =~ "AshLocalize.Types.Subdivision"
+    assert diff =~ "AshLocalize.Types.Timezone"
     assert diff =~ "AshLocalize.Types.Speed"
     # Satellite-gated types are not registered when their optional dep is absent.
     refute diff =~ "AshLocalize.Types.PostalAddress"

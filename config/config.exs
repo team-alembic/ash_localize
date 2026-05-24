@@ -10,6 +10,8 @@ config :ash_localize, default_locale: "en"
 config :ash, :custom_types,
   locale: AshLocalize.Types.Locale,
   territory: AshLocalize.Types.Territory,
+  subdivision: AshLocalize.Types.Subdivision,
+  timezone: AshLocalize.Types.Timezone,
   currency_code: AshLocalize.Types.CurrencyCode,
   person_name: AshLocalize.Types.PersonName,
   phone_number: AshLocalize.Types.PhoneNumber,

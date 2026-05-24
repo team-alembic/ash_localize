@@ -6,6 +6,17 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- Additional CLDR scalar types:
+  - `AshLocalize.Types.Timezone` — an `Ash.Type` for IANA timezone names,
+    validated against CLDR's BCP 47 ↔ IANA timezone data via Localize. Accepts
+    canonical IANA names, IANA aliases (`"Australia/ACT"`), or BCP 47 short
+    zones (`"ausyd"`); canonicalises to the IANA name. Short name `:timezone`.
+  - `AshLocalize.Types.Subdivision` — an `Ash.Type` for an ISO 3166-2
+    country-subdivision code (states/provinces/regions), validated against
+    `Localize.validate_territory_subdivision/1`. Optional `:territory`
+    constraint pins the valid codes to subdivisions of a particular country
+    (rejects `:usca` stored on a `country: :CA` row). Short name `:subdivision`.
+
 - Phase 1 — Foundations:
   - `AshLocalize.Types.Locale`, `AshLocalize.Types.Territory`, and
     `AshLocalize.Types.CurrencyCode` custom Ash types, CLDR-validated via Localize.

@@ -30,6 +30,8 @@ if Code.ensure_loaded?(Igniter) do
     @core_types [
       locale: AshLocalize.Types.Locale,
       territory: AshLocalize.Types.Territory,
+      subdivision: AshLocalize.Types.Subdivision,
+      timezone: AshLocalize.Types.Timezone,
       currency_code: AshLocalize.Types.CurrencyCode,
       count: AshLocalize.Types.Count,
       ordinal: AshLocalize.Types.Ordinal,

@@ -7,12 +7,12 @@ the CLDR-backed localization library for Elixir.
 application needs. locales, territories, currency codes, and units of measure, together with locale-aware formatting, translatable fields, and a single deterministic locale-resolution chain.
 
 > **Status: early development.** Phases 1–2 and the units-of-measure types are
-> implemented — the `Locale`/`Territory`/`CurrencyCode` types and validations,
-> `AshLocalize.Context` locale resolution, the locale-aware formatting calculations,
-> per-category unit types (`Speed`, `Mass`, `Length`, …), the `PersonName`,
-> `PhoneNumber`, and `PostalAddress` types, and the numeric semantic types
-> (`Count`, `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`). See
-> [`PLAN.md`](PLAN.md) for the roadmap.
+> implemented — the `Locale`/`Territory`/`Subdivision`/`Timezone`/`CurrencyCode`
+> types and validations, `AshLocalize.Context` locale resolution, the locale-aware
+> formatting calculations, per-category unit types (`Speed`, `Mass`, `Length`, …),
+> the `PersonName`, `PhoneNumber`, and `PostalAddress` types, and the numeric
+> semantic types (`Count`, `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`).
+> See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ## Types you should never reinvent
 
@@ -59,7 +59,7 @@ Categories: `length` (alias `distance`), `mass`, `speed`, `acceleration`, `force
 own reusable types (*jerk*, specific impulse, anything you want). See the
 [Custom units guide](documentation/custom_units.md).
 
-### Locales, territories, and currency codes
+### Locales, territories, subdivisions, timezones, and currency codes
 
 ```elixir
 defmodule MyApp.Accounts.User do
@@ -68,16 +68,21 @@ defmodule MyApp.Accounts.User do
   attributes do
     uuid_primary_key :id
     attribute :preferred_locale, :locale          # e.g. "en", "ja-JP"
-    attribute :country, :territory                # e.g. "AU", "JP"
+    attribute :country,          :territory       # e.g. "AU", "JP"
+    attribute :state,            :subdivision,    # e.g. "caon", "usca"
+              constraints: [territory: :US]
+    attribute :timezone,         :timezone        # e.g. "Australia/Sydney"
     attribute :billing_currency, :currency_code   # e.g. "AUD", "JPY"
   end
 end
 ```
 
 Each is a plain `Ash.Type` storing a string, with casting and validation routed through
-Localize. Casting normalises input to CLDR's canonical form (`"en-us"` → `"en-US"`) and
-rejects values CLDR does not recognise — both malformed strings and well-formed but
-unknown subtags.
+Localize. Casting normalises input to CLDR's canonical form (`"en-us"` → `"en-US"`,
+`"Australia/ACT"` → `"Australia/Sydney"`) and rejects values CLDR does not recognise —
+both malformed strings and well-formed but unknown subtags. The `:subdivision`
+type's optional `:territory` constraint additionally rejects subdivisions outside
+the named country.
 
 ### Person names
 
