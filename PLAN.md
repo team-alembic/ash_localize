@@ -35,6 +35,7 @@ Naming follows upstream and Ash convention: `ash_localize` (US spelling, matchin
 - Building new LiveView input components — the `localize_inputs_*` family already covers it.
 - Shipping a translation catalogue, `.po` pipeline, or extraction tooling — upstream's domain.
 - Tenant-coupled locale inference. Apps can opt in via the actor extractor.
+- Generic "useful types every app needs." `lat_long`, `color`, `url`, `path`, `email`, `api_key`, `jwt`, `ulid`, `slug`, `probability`, `year`, `age` and similar are not CLDR-flavoured — they belong in a separate **`ash_common_types`** package (TBD). `un_locode` is a heavyweight reference-data type (~110K UNECE codes, biannual updates, logistics-domain) and belongs in its own **`ash_logistics`** (or similar) package atop an as-yet-unwritten Elixir LOCODE dataset. ash_localize stays scoped to CLDR + the elixir-localize ecosystem.
 
 ## Package layout
 
