@@ -1,50 +1,54 @@
-defmodule AshLocalize.Calculations.FormatPhone do
-  @moduledoc """
-  An Ash calculation that renders an `AshLocalize.Types.PhoneNumber` attribute as a
-  formatted string via `Localize.PhoneNumber.to_string/2`.
+if Code.ensure_loaded?(Localize.PhoneNumber) do
+  defmodule AshLocalize.Calculations.FormatPhone do
+    @moduledoc """
+    An Ash calculation that renders an `AshLocalize.Types.PhoneNumber` attribute as a
+    formatted string via `Localize.PhoneNumber.to_string/2`.
 
-      calculations do
-        calculate :contact_phone_display, :string,
-          {AshLocalize.Calculations.FormatPhone, field: :contact_phone}
-      end
+        calculations do
+          calculate :contact_phone_display, :string,
+            {AshLocalize.Calculations.FormatPhone, field: :contact_phone}
+        end
 
-  ## Options
+    ## Options
 
-    * `:field` (required) — the atom name of the `:phone_number` attribute.
-    * `:format` — the style: `:international` (default), `:national`, `:e164`, or
-      `:rfc3966`.
+      * `:field` (required) — the atom name of the `:phone_number` attribute.
+      * `:format` — the style: `:international` (default), `:national`, `:e164`, or
+        `:rfc3966`.
 
-  Phone-number formatting is determined by the number's own country rather than a
-  display locale, so this calculation takes no locale. A `nil` source value yields `nil`.
-  """
+    Phone-number formatting is determined by the number's own country rather than a
+    display locale, so this calculation takes no locale. A `nil` source value yields `nil`.
 
-  use Ash.Resource.Calculation
+    Requires the optional `:localize_phone_number` dependency.
+    """
 
-  alias AshLocalize.Calculations.Helpers
+    use Ash.Resource.Calculation
 
-  @impl true
-  def init(opts), do: Helpers.require_field(opts)
+    alias AshLocalize.Calculations.Helpers
 
-  @impl true
-  def load(_query, opts, _context), do: [opts[:field]]
+    @impl true
+    def init(opts), do: Helpers.require_field(opts)
 
-  @impl true
-  def calculate(records, opts, _context) do
-    style = Keyword.get(opts, :format, :international)
-    Enum.map(records, &format_record(&1, opts[:field], style))
-  end
+    @impl true
+    def load(_query, opts, _context), do: [opts[:field]]
 
-  defp format_record(record, field, style) do
-    case Map.get(record, field) do
-      nil -> nil
-      number -> format(number, style)
+    @impl true
+    def calculate(records, opts, _context) do
+      style = Keyword.get(opts, :format, :international)
+      Enum.map(records, &format_record(&1, opts[:field], style))
     end
-  end
 
-  defp format(number, style) do
-    case Localize.PhoneNumber.to_string(number, style) do
-      {:ok, formatted} -> formatted
-      {:error, reason} -> raise "AshLocalize could not format a phone number: #{reason}"
+    defp format_record(record, field, style) do
+      case Map.get(record, field) do
+        nil -> nil
+        number -> format(number, style)
+      end
+    end
+
+    defp format(number, style) do
+      case Localize.PhoneNumber.to_string(number, style) do
+        {:ok, formatted} -> formatted
+        {:error, reason} -> raise "AshLocalize could not format a phone number: #{reason}"
+      end
     end
   end
 end

@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The "optional" dependencies were not actually optional: `Localize.Address.Address`,
+  `Localize.PhoneNumber.Number`, and `Localize.PersonName` struct expansions in
+  pattern matches forced compile-time presence of the satellite packages, so
+  `ash_localize` as a path/git dependency failed to compile unless all three were
+  also declared. Each of the three satellite-backed types and their formatting
+  calculations is now wrapped in a `Code.ensure_loaded?/1` guard — the module is
+  defined only when its dependency is available.
+
 ### Added
 
 - Additional CLDR scalar types:
