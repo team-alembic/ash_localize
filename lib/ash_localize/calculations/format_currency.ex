@@ -1,29 +1,49 @@
 defmodule AshLocalize.Calculations.FormatCurrency do
   @moduledoc """
-  An Ash calculation that renders a numeric amount as a locale-formatted currency string.
+  An Ash calculation that renders a monetary amount as a locale-formatted currency string.
 
-  The locale is resolved through `AshLocalize.Context`. The currency is either fixed for
-  the calculation or read per record from a sibling attribute.
+  The locale is resolved through `AshLocalize.Context`. There are three supported
+  shapes for the source value, in order of preference:
 
-      calculations do
-        # fixed currency
-        calculate :formatted_price, :string,
-          {AshLocalize.Calculations.FormatCurrency, field: :price, currency: "USD"}
+    * a `%Money{}` from [`ex_money`](https://hexdocs.pm/ex_money) (also the loaded
+      value of `AshMoney.Types.Money`). Currency is taken from the value itself —
+      keeping amount and currency coupled, as money should be modelled. Any
+      `:currency` / `:currency_field` option is ignored;
 
-        # per-record currency
-        calculate :formatted_total, :string,
-          {AshLocalize.Calculations.FormatCurrency,
-           field: :total, currency_field: :currency_code}
-      end
+    * a bare number / `Decimal`, paired with a fixed `:currency` (e.g.
+      `currency: "USD"`) when every row is denominated the same way;
+
+    * a bare number / `Decimal`, paired with `:currency_field` pointing at a
+      sibling `:currency_code` attribute, when the currency varies per row.
+
+  ```elixir
+  calculations do
+    # %Money{} source — currency is intrinsic
+    calculate :formatted_price, :string,
+      {AshLocalize.Calculations.FormatCurrency, field: :price}
+
+    # bare amount + fixed currency
+    calculate :formatted_subtotal, :string,
+      {AshLocalize.Calculations.FormatCurrency, field: :subtotal, currency: "USD"}
+
+    # bare amount + per-record currency
+    calculate :formatted_total, :string,
+      {AshLocalize.Calculations.FormatCurrency,
+       field: :total, currency_field: :currency_code}
+  end
+  ```
 
   ## Options
 
-    * `:field` (required) — the atom name of the numeric amount attribute.
-    * `:currency` — a fixed ISO 4217 currency code (string or atom).
-    * `:currency_field` — the atom name of a sibling attribute holding the currency code.
+    * `:field` (required) — the atom name of the source attribute.
+    * `:currency` — a fixed ISO 4217 currency code (string or atom). Used only
+      when the value is not a `%Money{}`.
+    * `:currency_field` — the atom name of a sibling attribute holding the
+      currency code. Used only when the value is not a `%Money{}`.
 
-  Exactly one of `:currency` or `:currency_field` is required. A `nil` amount — or a
-  `nil` per-record currency — produces a `nil` result.
+  At least one of those three must produce a currency at calculate time. A `nil`
+  amount — or a `nil` per-record currency for a bare-number source — produces a
+  `nil` result.
   """
 
   use Ash.Resource.Calculation
@@ -31,20 +51,7 @@ defmodule AshLocalize.Calculations.FormatCurrency do
   alias AshLocalize.Calculations.Helpers
 
   @impl true
-  def init(opts) do
-    with {:ok, opts} <- Helpers.require_field(opts) do
-      cond do
-        opts[:currency] ->
-          {:ok, opts}
-
-        is_atom(opts[:currency_field]) and not is_nil(opts[:currency_field]) ->
-          {:ok, opts}
-
-        true ->
-          {:error, "a `:currency` or `:currency_field` option is required"}
-      end
-    end
-  end
+  def init(opts), do: Helpers.require_field(opts)
 
   @impl true
   def load(_query, opts, _context) do
@@ -57,17 +64,39 @@ defmodule AshLocalize.Calculations.FormatCurrency do
   @impl true
   def calculate(records, opts, context) do
     Helpers.format(records, opts, context, fn amount, locale, record ->
-      case currency(opts, record) do
+      case unpack(amount, opts, record) do
+        {amount, currency} -> Localize.Number.to_string!(amount, locale: locale, currency: currency)
         nil -> nil
-        currency -> Localize.Number.to_string!(amount, locale: locale, currency: currency)
       end
     end)
   end
 
+  # Money values carry their own currency; any opts-supplied currency is ignored.
+  # This keeps amount and currency coupled — the whole point of using Money in the
+  # first place — instead of letting a sibling attribute override the value.
+  if Code.ensure_loaded?(Money) do
+    defp unpack(%Money{} = money, _opts, _record) do
+      {Money.to_decimal(money), Money.to_currency_code(money)}
+    end
+  end
+
+  defp unpack(amount, opts, record) do
+    case currency(opts, record) do
+      nil -> nil
+      currency -> {amount, currency}
+    end
+  end
+
   defp currency(opts, record) do
     case opts[:currency] do
-      nil -> Map.get(record, opts[:currency_field])
-      currency -> currency
+      nil ->
+        case opts[:currency_field] do
+          nil -> nil
+          field -> Map.get(record, field)
+        end
+
+      currency ->
+        currency
     end
   end
 end

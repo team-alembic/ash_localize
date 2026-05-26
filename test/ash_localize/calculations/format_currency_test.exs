@@ -10,8 +10,8 @@ defmodule AshLocalize.Calculations.FormatCurrencyTest do
       assert {:error, _} = FormatCurrency.init(currency: "USD")
     end
 
-    test "requires a currency source" do
-      assert {:error, _} = FormatCurrency.init(field: :price)
+    test "accepts :field alone (currency may come from a Money value at runtime)" do
+      assert {:ok, _opts} = FormatCurrency.init(field: :price)
     end
 
     test "accepts :field with a static :currency" do
@@ -56,6 +56,27 @@ defmodule AshLocalize.Calculations.FormatCurrencyTest do
       records = [%{price: Decimal.new("1234.5"), currency: nil}]
       opts = [field: :price, currency_field: :currency]
       assert FormatCurrency.calculate(records, opts, @context) == [nil]
+    end
+
+    test "formats a %Money{} source — currency comes from the value itself" do
+      records = [%{price: Money.new(:USD, "1234.5")}]
+      opts = [field: :price]
+      assert FormatCurrency.calculate(records, opts, @context) == ["$1,234.50"]
+    end
+
+    test "%Money{} ignores :currency / :currency_field — the value is authoritative" do
+      records = [%{price: Money.new(:JPY, 1500), currency: "USD"}]
+
+      # Static :currency is overridden by the Money's own currency.
+      assert FormatCurrency.calculate(records, [field: :price, currency: "USD"], @context) ==
+               ["¥1,500"]
+
+      # :currency_field likewise.
+      assert FormatCurrency.calculate(
+               records,
+               [field: :price, currency_field: :currency],
+               @context
+             ) == ["¥1,500"]
     end
   end
 end

@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- `AshLocalize.Calculations.FormatCurrency` now natively accepts a `%Money{}`
+  source (from [ex_money](https://hexdocs.pm/ex_money) / `AshMoney.Types.Money`)
+  and pulls the currency from the value itself. This is the recommended shape —
+  amount and currency stay coupled, matching this library's stance that values
+  carry their dimension. `:currency` / `:currency_field` opts remain for the
+  bare-number case and are ignored when the value is a `%Money{}`. `init/1` no
+  longer rejects a calc declared with only `:field` (the currency may arrive at
+  runtime from a Money value). New optional dependency `:ex_money ~> 6.0` —
+  the `%Money{}` clause is wrapped in `Code.ensure_loaded?(Money)` and is
+  absent when ex_money is not in the consumer's deps.
+
 ### Fixed
 
 - The "optional" dependencies were not actually optional: `Localize.Address.Address`,

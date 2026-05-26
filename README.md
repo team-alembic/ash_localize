@@ -199,43 +199,50 @@ rationale.
 
 ## Formatting calculations
 
-Locale-aware formatting is exposed as Ash calculations. Each one reads a source
-attribute and renders it through Localize, resolving the locale from the chain above.
-The cases worth showing — each pairs an attribute with the calc that renders it:
+Locale-aware formatting is exposed as Ash calculations. Each pairs a source
+attribute with a calc that renders it through Localize, resolving the locale from
+the chain above. Money is shown first because it's the defining example of this
+library's whole stance: **the value carries its dimension** — currency for money,
+base unit for `:speed`, IANA name for `:timezone`, full BCP 47 tag for `:locale`.
+Bare numbers with their unit hidden in a sibling column are exactly the shape
+this library is built to retire.
 
 ```elixir
 attributes do
-  # A plain integer that needs locale-correct thousands separators
-  # (`"1,234"` in en, `"1.234"` in de, `"1 234"` in fr).
+  # %Money{} from ex_money / AshMoney — amount and currency are one value.
+  # No companion `:currency_code` column; aggregation, arithmetic, and rendering
+  # all treat the pair atomically.
+  attribute :price, AshMoney.Types.Money, public?: true
+
+  # A dimensioned quantity. The base unit is type metadata (here: m/s); writes
+  # accept any compatible unit and convert. The loaded value is a
+  # %Localize.Unit{} that knows its unit.
+  attribute :delta_v, :speed, public?: true
+
+  # An integer that needs locale-correct thousands separators
+  # ("1,234" en / "1.234" de / "1 234" fr).
   attribute :word_count, :integer, public?: true
 
-  # A monetary amount stored alongside its ISO 4217 currency code, the way
-  # most apps shape money. (For first-class money see AshMoney below.)
-  attribute :amount,   :decimal,       public?: true
-  attribute :currency, :currency_code, public?: true
+  # Date and UTC datetime rendered with locale-correct field ordering, month
+  # names, and time format ("Apr 5, 2026" vs "5. Apr. 2026").
+  attribute :starts_on, :date,         public?: true
+  attribute :ends_at,   :utc_datetime, public?: true
 
-  # A Date and a UTC DateTime to be rendered with locale-correct field
-  # ordering, month names, and time format ("Apr 5, 2026" vs "5. Apr. 2026").
-  attribute :starts_on, :date,          public?: true
-  attribute :ends_at,   :utc_datetime,  public?: true
-
-  # A list whose joiner depends on the locale ("a, b, and c" vs "a、b、c").
+  # A list whose joiner depends on locale ("a, b, and c" vs "a、b、c").
   attribute :tags, {:array, :string}, public?: true
-
-  # A dimensioned quantity, base unit baked into the type (here: meters per
-  # second). Renders "7,800 m/s" / "7.800 m/s" / "7,800 metres per second"
-  # depending on locale and explicit unit choice.
-  attribute :delta_v, :speed, public?: true
 end
 
 calculations do
-  calculate :formatted_word_count, :string,
-    {AshLocalize.Calculations.FormatNumber, field: :word_count}
+  # Currency comes from the %Money{} value itself — no :currency option needed.
+  # An order in JPY renders "¥1,500"; one in EUR renders "1.500,00 €".
+  calculate :price_label, :string,
+    {AshLocalize.Calculations.FormatCurrency, field: :price}
 
-  # Per-record currency — reads the currency code from the sibling attribute,
-  # so an order in JPY renders "¥1,500" and an order in EUR renders "1.500,00 €".
-  calculate :formatted_amount, :string,
-    {AshLocalize.Calculations.FormatCurrency, field: :amount, currency_field: :currency}
+  calculate :delta_v_label, :string,
+    {AshLocalize.Calculations.FormatUnit, field: :delta_v}
+
+  calculate :word_count_label, :string,
+    {AshLocalize.Calculations.FormatNumber, field: :word_count}
 
   calculate :starts_on_label, :string,
     {AshLocalize.Calculations.FormatDate, field: :starts_on}
@@ -243,27 +250,27 @@ calculations do
   calculate :ends_at_label, :string,
     {AshLocalize.Calculations.FormatDateTime, field: :ends_at}
 
-  calculate :formatted_tags, :string,
+  calculate :tags_label, :string,
     {AshLocalize.Calculations.FormatList, field: :tags}
-
-  calculate :formatted_delta_v, :string,
-    {AshLocalize.Calculations.FormatUnit, field: :delta_v}
 end
 ```
 
-`FormatCurrency` also accepts a fixed `currency: "USD"` when every row of a
-resource is denominated in the same currency. A `nil` source value yields a
-`nil` result. Add a `:locale` argument to a calculation to feed the
-explicit-argument arm of locale resolution.
+A `nil` source value yields a `nil` result. Add a `:locale` argument to a
+calculation to feed the explicit-argument arm of locale resolution.
 
-### Money
+### Money sources
 
-The two-attribute "amount + currency_code" shape above is the bare-bones one.
-For real-world money modelling (a single `%Money{}` value carrying its own
-currency, arithmetic that respects scale, multi-currency aggregates),
-[AshMoney](https://hexdocs.pm/ash_money) provides a first-class `:money`
-type and a formatting calculation that handles the unpacking. Reach for it
-whenever a column would naturally be Money rather than a bare decimal.
+`FormatCurrency` natively accepts a `%Money{}` source (from
+[ex_money](https://hexdocs.pm/ex_money), or the loaded value of
+[`AshMoney.Types.Money`](https://hexdocs.pm/ash_money)) and pulls the currency
+from the value itself. This is the recommended shape: amount and currency stay
+coupled — splitting them into two attributes invites the same class of bug as
+storing "distance: 100" with the unit hidden in a comment.
+
+For legacy resources where money is already split across two columns,
+`FormatCurrency` also takes a fixed `currency: "USD"` (one currency for the
+whole resource) or `currency_field: :some_attr` (per-record code from a
+sibling). Use these only as a migration ramp toward Money.
 
 ## Optional integrations
 
