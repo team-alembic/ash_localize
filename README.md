@@ -283,6 +283,7 @@ compiled in only when your application also declares the upstream package:
 
 | Add to your deps                      | Unlocks                                           |
 | ------------------------------------- | ------------------------------------------------- |
+| `ash_money`                           | the `:money` type and `%Money{}` formatting       |
 | `localize_phone_number` (git)         | the `:phone_number` type (libphonenumber)         |
 | `localize_address`                    | the `:postal_address` type (libpostal)            |
 | `localize_person_names`               | the `:person_name` type                           |

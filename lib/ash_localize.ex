@@ -36,12 +36,15 @@ defmodule AshLocalize do
       AshLocalize.format(order.starts_on)     # "May 22, 2026"
       AshLocalize.format(order.tags)          # "apples, oranges, and pears"
 
-  `nil` passes through. Built-in support covers `Integer`, `Float`, `Decimal`,
-  `Date`, `NaiveDateTime`, `DateTime`, `List`, and `Localize.Unit`. Optional support
-  for `Money`, `Localize.PhoneNumber.Number`, `Localize.Address.Address`, and
-  `Localize.PersonName` is compiled in when the matching dependency is present.
+  Dispatch goes through the upstream `Localize.Chars` protocol, which already covers
+  `Integer`, `Float`, `Decimal`, `Date`, `Time`, `NaiveDateTime`, `DateTime`,
+  `Range`, `List`, `Localize.Unit`, `Localize.Duration`, `Localize.LanguageTag`, and
+  `Localize.Currency`. The `localize_address`, `localize_person_names`, and
+  `localize_phone_number` satellites add their own implementations. `ash_localize`
+  adds one more: `%Money{}` from `ex_money` (the loaded value of
+  `AshMoney.Types.Money`), pulling its currency from the value itself.
 
-  Extend to a custom type by implementing the `AshLocalize.Format` protocol.
+  `nil` passes through. Errors from the upstream renderer are raised.
 
   ## Options
 
@@ -49,12 +52,17 @@ defmodule AshLocalize do
       When absent, falls back to the application default via `AshLocalize.Context`.
     * Format-specific keys are passed through to the upstream renderer — e.g.
       `format: :national` for a phone number, `usage: :referring` for a person name.
-
-  Raises `Protocol.UndefinedError` for a value with no registered formatter; the
-  message names the type so you know what to implement.
   """
   @spec format(term(), keyword()) :: String.t() | nil
   def format(value, opts \\ [])
   def format(nil, _opts), do: nil
-  def format(value, opts) when is_list(opts), do: AshLocalize.Format.format(value, opts)
+
+  def format(value, opts) when is_list(opts) do
+    opts = Keyword.put(opts, :locale, AshLocalize.Context.locale!(%{}, argument: opts[:locale]))
+
+    case Localize.Chars.to_string(value, opts) do
+      {:ok, formatted} -> formatted
+      {:error, exception} -> raise exception
+    end
+  end
 end

@@ -6,18 +6,28 @@ All notable changes to this project are documented here.
 
 ### Added
 
-- `AshLocalize.format/1,2` — value-dispatched locale-aware formatting via the new
-  `AshLocalize.Format` protocol. Reach for it in Phoenix templates, LiveView,
-  scripts, exporters, notification builders — anywhere you already have the value
-  in hand. The value carries its dimension (a `%Money{}` knows its currency, a
-  `%Localize.Unit{}` its base unit, a `%Date{}` is structurally identifiable), so
-  no resource + attribute name is needed. Built-in implementations cover
-  `Integer`, `Float`, `Decimal`, `Date`, `NaiveDateTime`, `DateTime`, `List`, and
-  `Localize.Unit`. Optional implementations for `Money`,
-  `Localize.PhoneNumber.Number`, `Localize.Address.Address`, and
-  `Localize.PersonName` are wrapped behind `Code.ensure_loaded?/1` and compile in
-  only when the matching dependency is present. Extend to a custom value type by
-  implementing `AshLocalize.Format` for its struct.
+- `AshLocalize.format/1,2` — value-dispatched locale-aware formatting. Reach for
+  it in Phoenix templates, LiveView, scripts, exporters, notification builders —
+  anywhere you already have the value in hand. Dispatches through the upstream
+  `Localize.Chars` protocol, which already covers `Integer`, `Float`, `Decimal`,
+  `Date`, `Time`, `NaiveDateTime`, `DateTime`, `Range`, `List`, `Localize.Unit`,
+  `Localize.Duration`, `Localize.LanguageTag`, and `Localize.Currency`. The
+  `localize_address`, `localize_person_names`, and `localize_phone_number`
+  satellites add their own implementations. `ash_localize` adds one more — for
+  `%Money{}` from `ex_money` (the loaded value of `AshMoney.Types.Money`),
+  pulling its currency from the value itself. Wrapped in `Code.ensure_loaded?/1`
+  so it vanishes when the consumer has neither `ex_money` nor `ash_money` in
+  their deps.
+
+- `ash_money` is now declared as an optional dependency. With `ash_money`
+  present, `AshMoney.Types.Money` is the recommended type for monetary
+  attributes — see [`usage-rules.md`](usage-rules.md).
+
+- [`usage-rules.md`](usage-rules.md) — conventions for LLM coding agents working
+  with `ash_localize`. Documents the library's core stance (values carry their
+  dimension), the canonical type for each modelling concept (money is `Money`,
+  not split; counts are `:count`, not `:integer`; locale-like strings use the
+  dedicated types), and the formatting and locale-resolution conventions.
 
 ### Changed
 
