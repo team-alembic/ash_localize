@@ -39,14 +39,14 @@ Naming follows upstream and Ash convention: `ash_localize` (US spelling, matchin
 
 ## Package layout
 
-One package: `ash_localize`. The elixir-localize ecosystem is a hub — `localize` — surrounded by satellites (`localize_phonenumber`, `localize_address`, `localize_person_names`, `localize_translate`, `localize_units_sql`, `localize_web`, the `localize_*_inputs` family). `ash_localize` provides the Ash integration for the whole ecosystem from one package; the heavy satellites are **optional dependencies**.
+One package: `ash_localize`. The elixir-localize ecosystem is a hub — `localize` — surrounded by satellites (`localize_phone_number`, `localize_address`, `localize_person_names`, `localize_translate`, `localize_sql`, `localize_web`, the `localize_*_inputs` family). `ash_localize` provides the Ash integration for the whole ecosystem from one package; the heavy satellites are **optional dependencies**.
 
 - `localize` is the only hard dependency — the CLDR hub (numbers, dates, units, lists, territories, languages, collation, MessageFormat), pure Elixir plus data.
 - Every other satellite, and `ash_postgres` / `ash_phoenix`, is declared `optional: true`: it — and its native baggage, such as libpostal or libphonenumber — is compiled in only when the consuming application also declares it. The application's dependency list is the feature switch.
 
 Each optional integration sits behind a `Code.ensure_loaded?/1` compile guard, the pattern already used for the ash_graphql / ash_json_api registrations below, so the package compiles and runs with none present. An attribute or calculation needing an absent satellite fails loudly, naming the package to add.
 
-This supersedes an earlier three-package split (`ash_localize` / `_postgres` / `_phoenix`). That split's main argument was that Localize had no SQL companion to lean on — but `localize_units_sql` exists, the Phoenix bridge is small, and optional dependencies keep one package, for a consumer who opts into nothing, as light as a split one.
+This supersedes an earlier three-package split (`ash_localize` / `_postgres` / `_phoenix`). That split's main argument was that Localize had no SQL companion to lean on — but `localize_sql` exists, the Phoenix bridge is small, and optional dependencies keep one package, for a consumer who opts into nothing, as light as a split one.
 
 ### Core
 
@@ -93,7 +93,7 @@ lib/ash_localize/translations/
 lib/ash_localize/integrations/
   ash_graphql.ex                          # type registrations, guarded
   ash_json_api.ex                         # type registrations, guarded
-lib/ash_localize/postgres/                # optional: ash_postgres + localize_units_sql
+lib/ash_localize/postgres/                # optional: ash_postgres + localize_sql
   composite_types.ex
   migrations.ex
 lib/ash_localize/phoenix/                 # optional: ash_phoenix + localize_web
@@ -113,7 +113,7 @@ config :ash, :custom_types,
 
 ### Postgres optimisations (optional)
 
-Active when `ash_postgres` and `localize_units_sql` are present; installed via repo `installed_extensions/0`, `ash_money` pattern.
+Active when `ash_postgres` and `localize_sql` are present; installed via repo `installed_extensions/0`, `ash_money` pattern.
 
 Provides:
 
@@ -236,15 +236,16 @@ The bridge is three pieces, all inside the optional Phoenix integration. Composi
 
 ### Upstream readiness
 
-The full ecosystem the bridge depends on is published and recent (May 2026):
+The full ecosystem the bridge depends on is published, and the Localize half went 1.0 on 2026-07-31:
 
 | Package                    | Hex    | Provides                                                                                |
 |----------------------------|--------|-----------------------------------------------------------------------------------------|
-| `ash_phoenix`              | 2.3.22 | Ash ↔ Phoenix glue, `AshPhoenix.Form`                                                   |
-| `localize_web`             | 0.7.0  | HTTP locale negotiation plug, localized routes, HTML helpers                            |
-| `localize_inputs_core`     | 0.1.0  | Shared CSS tokens, Gettext backend, JS bootstrap                                        |
-| `localize_datetime_inputs` | 0.1.2  | `<.date_input>`, `<.date_range_input>`, `<.date_range_picker>`, multi-calendar support  |
-| `localize_number_inputs`   | 0.1.2  | `<.number_input>` (decimal/integer), `<.unit_input>` (number + UoM picker)              |
+| `ash_phoenix`              | 2.3.24 | Ash ↔ Phoenix glue, `AshPhoenix.Form`                                                   |
+| `localize_web`             | 1.0.0  | HTTP locale negotiation plug, localized routes, HTML helpers                            |
+| `localize_inputs_core`     | 0.2.0  | Shared CSS tokens, Gettext backend, JS bootstrap                                        |
+| `localize_datetime_inputs` | 0.2.0  | `<.date_input>`, `<.date_range_input>`, `<.date_range_picker>`, multi-calendar support  |
+| `localize_number_inputs`   | 0.2.0  | `<.number_input>` (decimal/integer), `<.unit_input>` (number + UoM picker)              |
+| `ex_money_input`           | 0.3.0  | `<.money_input>` — amount + currency, parsed in-locale                                  |
 
 There is no `localize_inputs` umbrella on Hex — the family ships as the per-flavour packages above.
 
@@ -331,7 +332,7 @@ Phased by user-visible value. Translations are deliberately sequenced last.
 
 **Remaining**, in order:
 
-4. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_units_sql`.
+4. **Postgres optimisations.** Composite lowering, collation fragments, JSONB helpers, migration generator. Optional; needs `ash_postgres` + `localize_sql`.
 5. **Phoenix bridge** (three stages). `LocalePlug`, `<.ash_input>` dispatcher, and multi-locale form handling. Optional; needs `ash_phoenix` + `localize_web` + the `localize_*_inputs` family. See Phoenix and LiveView for the stage breakdown.
 6. **ash_graphql / ash_json_api registrations.** Guarded type registrations for projects using those extensions.
 7. **Translations: `Embedded` store.** `LocalizedString` type + Spark DSL extension + Embedded store + per-field localized calculations + form-friendly write handling. The minimum viable translation story.
@@ -352,7 +353,7 @@ Phased by user-visible value. Translations are deliberately sequenced last.
 
 - `localize_translate` is the intended upstream translation store; `ash_localize` ships its own behaviour and adapter rather than coupling directly. Two non-upstream stores (`Embedded`, `SiblingResource`) provide fallback coverage.
 - `Embedded` is the recommended default store: simplest mental model, one fetch returns all translations, works on every data layer. `SiblingResource` is opt-in for apps that genuinely need workflow, filter-by-translated-text in Ash expressions, or cleaner alignment with `LocalizeTranslate`. Caveat: if most users end up migrating to `LocalizeTranslate`-backed storage, `Embedded`-default users will face a data-shape migration. Worth tracking; acceptable trade for simplicity now.
-- One package, `ash_localize`. Satellites (`localize_address`, `localize_phonenumber`, …) and the Postgres / Phoenix integrations are optional dependencies, guarded so they cost nothing when absent.
+- One package, `ash_localize`. Satellites (`localize_address`, `localize_phone_number`, …) and the Postgres / Phoenix integrations are optional dependencies, guarded so they cost nothing when absent.
 - LiveView story is composition, not duplication: `localize_inputs_*` is dispatched from a single `<.ash_input>` helper.
 - Default `LocalizedString` GraphQL shape is "object with per-locale fields"; configurable to JSON scalar.
 - Locale resolution chain has exactly four arms. Actor inference is opt-in. Process dict is excluded. Tenant inference is excluded.

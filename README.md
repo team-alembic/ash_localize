@@ -12,7 +12,7 @@ application needs. locales, territories, currency codes, and units of measure, t
 > formatting calculations, per-category unit types (`Speed`, `Mass`, `Length`, …),
 > the `PersonName`, `PhoneNumber`, and `PostalAddress` types, and the numeric
 > semantic types (`Count`, `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`).
-> See [`PLAN.md`](PLAN.md) for the roadmap.
+> See [`docs/PLAN.md`](docs/PLAN.md) for the roadmap.
 
 ## Types you should never reinvent
 
@@ -189,7 +189,7 @@ most specific first:
 3. **Actor-derived** — opt-in via the `:actor_locale` option.
 4. **Application default** — `config :ash_localize, default_locale: ...`.
 
-The process dictionary and tenant are deliberately excluded; see `PLAN.md` for the
+The process dictionary and tenant are deliberately excluded; see `docs/PLAN.md` for the
 rationale.
 
 ```elixir
@@ -284,11 +284,11 @@ compiled in only when your application also declares the upstream package:
 | Add to your deps                      | Unlocks                                           |
 | ------------------------------------- | ------------------------------------------------- |
 | `ash_money`                           | the `:money` type and `%Money{}` formatting       |
-| `localize_phone_number` (git)         | the `:phone_number` type (libphonenumber)         |
+| `localize_phone_number`               | the `:phone_number` type (libphonenumber)         |
 | `localize_address`                    | the `:postal_address` type (libpostal)            |
 | `localize_person_names`               | the `:person_name` type                           |
 | `localize_translate`                  | the `LocalizeTranslate` translation store         |
-| `ash_postgres` + `localize_units_sql` | native composite types, ICU collation, migrations |
+| `ash_postgres` + `localize_sql`       | native composite types, ICU collation, migrations |
 | `ash_phoenix` + `localize_web`        | the locale plug and `<.ash_input>` form helpers   |
 
 Without them, the core — locale/territory/currency/unit types, formatting, and

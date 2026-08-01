@@ -18,7 +18,7 @@ defmodule AshLocalize.Context do
   4. **Application default** — `AshLocalize.default_locale/0`.
 
   The process dictionary (`Localize.put_locale/1`) and the tenant are deliberately
-  excluded; see `PLAN.md` for the rationale. Code that wants process-dictionary or
+  excluded; see `docs/PLAN.md` for the rationale. Code that wants process-dictionary or
   tenant behaviour copies the locale into the Ash context upstream of the operation.
 
   ## Examples
