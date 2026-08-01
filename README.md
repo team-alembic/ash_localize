@@ -197,80 +197,84 @@ rationale.
 "en" = AshLocalize.Context.locale!(%{}, [])
 ```
 
-## Formatting calculations
+## Formatting
 
-Locale-aware formatting is exposed as Ash calculations. Each pairs a source
-attribute with a calc that renders it through Localize, resolving the locale from
-the chain above. Money is shown first because it's the defining example of this
-library's whole stance: **the value carries its dimension** — currency for money,
-base unit for `:speed`, IANA name for `:timezone`, full BCP 47 tag for `:locale`.
-Bare numbers with their unit hidden in a sibling column are exactly the shape
-this library is built to retire.
+The library's stance is that **values carry their dimension** — currency for
+money, base unit for `:speed`, IANA name for `:timezone`, full BCP 47 tag for
+`:locale`, the noun for a `:count`. So the resource picks honest types, and the
+rendering side just dispatches on the value:
 
 ```elixir
 attributes do
-  # %Money{} from ex_money / AshMoney — amount and currency are one value.
-  # No companion `:currency_code` column; aggregation, arithmetic, and rendering
-  # all treat the pair atomically.
+  # %Money{} — amount and currency are one value.
   attribute :price, AshMoney.Types.Money, public?: true
 
-  # A dimensioned quantity. The base unit is type metadata (here: m/s); writes
-  # accept any compatible unit and convert. The loaded value is a
-  # %Localize.Unit{} that knows its unit.
+  # A dimensioned quantity. Base unit is type metadata (here: m/s); writes
+  # accept any compatible unit and convert. Loaded value is a %Localize.Unit{}.
   attribute :delta_v, :speed, public?: true
 
-  # An integer that needs locale-correct thousands separators
-  # ("1,234" en / "1.234" de / "1 234" fr).
-  attribute :word_count, :integer, public?: true
+  # A count of something. `:of` names the noun, which drives plural-aware
+  # rendering ("No comments" / "1 comment" / "27 comments" in en; "27件のコメント"
+  # in ja) and is the key the translation catalogue will resolve.
+  attribute :comment_count, :count, constraints: [of: :comments], public?: true
 
-  # Date and UTC datetime rendered with locale-correct field ordering, month
-  # names, and time format ("Apr 5, 2026" vs "5. Apr. 2026").
+  # Date and UTC datetime rendered with locale-correct field ordering.
   attribute :starts_on, :date,         public?: true
   attribute :ends_at,   :utc_datetime, public?: true
 
   # A list whose joiner depends on locale ("a, b, and c" vs "a、b、c").
   attribute :tags, {:array, :string}, public?: true
 end
+```
 
+In a Phoenix template, LiveView, exporter, or anywhere you already have the
+value in hand, `AshLocalize.format/1` dispatches on the value's type:
+
+```eex
+<%= AshLocalize.format(@order.price) %>           <!-- "$1,234.50" or "¥1,500" -->
+<%= AshLocalize.format(@order.delta_v) %>         <!-- "7,800 m/s"             -->
+<%= AshLocalize.format(@order.starts_on) %>       <!-- "May 22, 2026"          -->
+<%= AshLocalize.format(@order.tags) %>            <!-- "apples, oranges, and pears" -->
+```
+
+For values whose source type can't disambiguate the formatting — a count of
+*what?*, an ordinal vs a cardinal, a percentage vs a ratio — reach for the
+named shortcut that supplies the missing semantic. (These render against the
+`:of` constraint or arguments on the calc; the translation catalogue picks the
+locale-specific template.)
+
+For API consumers (AshGraphQL, AshJsonApi, AshAdmin) that need a *field* rather
+than an Elixir call, define a calculation that wraps `AshLocalize.format/2`:
+
+```elixir
 calculations do
-  # Currency comes from the %Money{} value itself — no :currency option needed.
-  # An order in JPY renders "¥1,500"; one in EUR renders "1.500,00 €".
   calculate :price_label, :string,
     {AshLocalize.Calculations.FormatCurrency, field: :price}
 
   calculate :delta_v_label, :string,
     {AshLocalize.Calculations.FormatUnit, field: :delta_v}
 
-  calculate :word_count_label, :string,
-    {AshLocalize.Calculations.FormatNumber, field: :word_count}
-
-  calculate :starts_on_label, :string,
-    {AshLocalize.Calculations.FormatDate, field: :starts_on}
-
-  calculate :ends_at_label, :string,
-    {AshLocalize.Calculations.FormatDateTime, field: :ends_at}
-
-  calculate :tags_label, :string,
-    {AshLocalize.Calculations.FormatList, field: :tags}
+  calculate :comment_count_label, :string,
+    {AshLocalize.Calculations.FormatCount, field: :comment_count,
+     if_zero: "No comments", one: "1 comment", other: "{$count} comments"}
 end
 ```
 
-A `nil` source value yields a `nil` result. Add a `:locale` argument to a
-calculation to feed the explicit-argument arm of locale resolution.
+A `nil` source value always yields `nil`. Add a `:locale` argument to a
+calculation, or pass `locale:` to `AshLocalize.format/2`, to feed the
+explicit-argument arm of locale resolution.
 
 ### Money sources
 
-`FormatCurrency` natively accepts a `%Money{}` source (from
+`AshLocalize.format/1` natively unpacks a `%Money{}` value (from
 [ex_money](https://hexdocs.pm/ex_money), or the loaded value of
-[`AshMoney.Types.Money`](https://hexdocs.pm/ash_money)) and pulls the currency
-from the value itself. This is the recommended shape: amount and currency stay
-coupled — splitting them into two attributes invites the same class of bug as
-storing "distance: 100" with the unit hidden in a comment.
+[`AshMoney.Types.Money`](https://hexdocs.pm/ash_money)) — amount and currency
+travel together. Splitting them into two attributes invites the same class of
+bug as storing `"distance: 100"` with the unit hidden in a comment.
 
 For legacy resources where money is already split across two columns,
-`FormatCurrency` also takes a fixed `currency: "USD"` (one currency for the
-whole resource) or `currency_field: :some_attr` (per-record code from a
-sibling). Use these only as a migration ramp toward Money.
+`FormatCurrency` also takes a fixed `currency: "USD"` or
+`currency_field: :some_attr`. Use these only as a migration ramp toward Money.
 
 ## Optional integrations
 
