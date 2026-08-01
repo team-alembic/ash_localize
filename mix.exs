@@ -34,15 +34,11 @@ defmodule AshLocalize.MixProject do
   defp deps do
     [
       {:ash, "~> 3.5"},
-      {:localize, "~> 0.37"},
-      {:localize_person_names, "~> 0.1", optional: true},
-      {:localize_address, "~> 0.2", optional: true},
-      {:localize_phone_number, github: "elixir-localize/localize_phonenumber", optional: true},
-      # AshMoney brings ex_money transitively; our `Localize.Chars` impl for
-      # `%Money{}` compiles whenever the Money struct is loadable. Pointed at
-      # main while ash_money's Hex release still pins ex_money 5.x; switch to
-      # `~> 0.3` once ash_money releases with ex_money 6 / Decimal 3 support.
-      {:ash_money, github: "ash-project/ash_money", optional: true},
+      {:localize, "~> 1.0"},
+      {:localize_person_names, "~> 1.0", optional: true},
+      {:localize_address, "~> 1.0", optional: true},
+      {:localize_phone_number, "~> 1.0", optional: true},
+      {:ash_money, "~> 0.2.6", optional: true},
       {:igniter, "~> 0.8", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

@@ -40,3 +40,8 @@ config :ash, :custom_types,
   digital: AshLocalize.Types.Digital,
   electric_current: AshLocalize.Types.ElectricCurrent,
   voltage: AshLocalize.Types.Voltage
+
+# ex_money 6.2 deprecates auto-starting the exchange rate service. We only ever
+# format `%Money{}` values through `Localize.Chars` — no conversion, no rates —
+# so opt out rather than start a retriever we never ask anything of.
+config :ex_money, auto_start_exchange_rate_service: false

@@ -31,6 +31,26 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Dependencies moved to the Localize 1.0 line, published 2026-07-30/31:
+  `localize ~> 1.0` (from `~> 0.37`), `localize_person_names ~> 1.0` (from
+  `~> 0.1`), `localize_address ~> 1.0` (from `~> 0.2`). No source changes were
+  needed — the 1.0 API is compatible with everything `ash_localize` uses.
+
+- `localize_phone_number` now comes from Hex at `~> 1.0` rather than a git
+  reference to the old `elixir-localize/localize_phonenumber` repository. The
+  package was renamed on 2026-07-31; `localize_units_sql` was absorbed into
+  `localize_sql` in the same round, and references to both old names are
+  corrected throughout the docs.
+
+- `ash_money` now comes from Hex at `~> 0.2.6` rather than a git reference to
+  `main`. The pin existed because the Hex release pinned `ex_money` 5.x; 0.2.6
+  requires `ex_money ~> 6.0` and resolves against `ex_money` 6.2.0 and Decimal 3.
+
+- `config :ex_money, auto_start_exchange_rate_service: false`. `ex_money` 6.2
+  deprecates automatic start of the exchange rate service. `ash_localize` only
+  formats `%Money{}` values, never converts them, so there is no retriever to
+  start.
+
 - `AshLocalize.Calculations.FormatCurrency` now natively accepts a `%Money{}`
   source (from [ex_money](https://hexdocs.pm/ex_money) / `AshMoney.Types.Money`)
   and pulls the currency from the value itself. This is the recommended shape —
