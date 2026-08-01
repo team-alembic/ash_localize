@@ -14,32 +14,15 @@ defmodule AshLocalize.Types.Locale do
   Referenced as `:locale` once the short type names are registered — see the README.
   """
 
-  use Ash.Type
+  use AshLocalize.CodeType, message: "is not a valid locale"
 
   @impl true
-  def storage_type(_constraints), do: :string
-
-  @impl true
-  def cast_input(nil, _constraints), do: {:ok, nil}
-
-  def cast_input(value, _constraints) when is_binary(value) do
+  def cast_code(value, _constraints) do
     with {:ok, tag} <- Localize.LanguageTag.parse(value),
          {:ok, canonical} <- Localize.LanguageTag.canonicalize(tag) do
       {:ok, Localize.LanguageTag.to_string(canonical)}
     else
-      {:error, _reason} -> {:error, message: "is not a valid locale"}
+      {:error, _reason} -> code_error()
     end
   end
-
-  def cast_input(_value, _constraints), do: {:error, message: "is not a valid locale"}
-
-  @impl true
-  def cast_stored(nil, _constraints), do: {:ok, nil}
-  def cast_stored(value, _constraints) when is_binary(value), do: {:ok, value}
-  def cast_stored(_value, _constraints), do: :error
-
-  @impl true
-  def dump_to_native(nil, _constraints), do: {:ok, nil}
-  def dump_to_native(value, _constraints) when is_binary(value), do: {:ok, value}
-  def dump_to_native(_value, _constraints), do: :error
 end

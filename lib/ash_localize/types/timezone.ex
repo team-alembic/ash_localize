@@ -18,7 +18,7 @@ defmodule AshLocalize.Types.Timezone do
   Referenced as `:timezone` once the short type names are registered — see the README.
   """
 
-  use Ash.Type
+  use AshLocalize.CodeType, message: "is not a known timezone"
 
   alias Localize.DateTime.Timezone, as: LocalizeTimezone
 
@@ -34,34 +34,17 @@ defmodule AshLocalize.Types.Timezone do
                      do: {iana, short}
 
   @impl true
-  def storage_type(_constraints), do: :string
-
-  @impl true
-  def cast_input(nil, _constraints), do: {:ok, nil}
-
-  def cast_input(value, _constraints) when is_binary(value) do
+  def cast_code(value, _constraints) do
     with :error <- as_short_zone(value),
          :error <- as_iana_name(value) do
-      {:error, message: "is not a known timezone"}
+      code_error()
     end
   end
-
-  def cast_input(_value, _constraints), do: {:error, message: "is not a known timezone"}
-
-  @impl true
-  def cast_stored(nil, _constraints), do: {:ok, nil}
-  def cast_stored(value, _constraints) when is_binary(value), do: {:ok, value}
-  def cast_stored(_value, _constraints), do: :error
-
-  @impl true
-  def dump_to_native(nil, _constraints), do: {:ok, nil}
-  def dump_to_native(value, _constraints) when is_binary(value), do: {:ok, value}
-  def dump_to_native(_value, _constraints), do: :error
 
   defp as_short_zone(value) do
     case LocalizeTimezone.validate_short_zone(value) do
       {:ok, iana} -> {:ok, iana}
-      {:error, _} -> :error
+      {:error, _reason} -> :error
     end
   end
 

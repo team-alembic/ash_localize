@@ -18,54 +18,30 @@ defmodule AshLocalize.Types.Subdivision do
   README.
   """
 
-  use Ash.Type
+  use AshLocalize.CodeType,
+    message: "is not a valid subdivision",
+    constraints: [
+      territory: [
+        type: {:or, [:atom, :string]},
+        required: false,
+        doc: "Restrict valid codes to subdivisions of this CLDR territory."
+      ]
+    ]
 
   alias Localize.Territory.Subdivision, as: LocalizeSubdivision
 
-  @constraints [
-    territory: [
-      type: {:or, [:atom, :string]},
-      required: false,
-      doc: "Restrict valid codes to subdivisions of this CLDR territory."
-    ]
-  ]
-
   @impl true
-  def constraints, do: @constraints
-
-  @impl true
-  def storage_type(_constraints), do: :string
-
-  @impl true
-  def cast_input(nil, _constraints), do: {:ok, nil}
-
-  def cast_input(value, constraints) when is_atom(value) do
-    value |> Atom.to_string() |> cast_input(constraints)
-  end
-
-  def cast_input(value, constraints) when is_binary(value) do
+  def cast_code(value, constraints) do
     with {:ok, code} <- validate_code(value),
          :ok <- validate_territory(code, constraints[:territory]) do
       {:ok, Atom.to_string(code)}
     end
   end
 
-  def cast_input(_value, _constraints), do: {:error, message: "is not a valid subdivision"}
-
-  @impl true
-  def cast_stored(nil, _constraints), do: {:ok, nil}
-  def cast_stored(value, _constraints) when is_binary(value), do: {:ok, value}
-  def cast_stored(_value, _constraints), do: :error
-
-  @impl true
-  def dump_to_native(nil, _constraints), do: {:ok, nil}
-  def dump_to_native(value, _constraints) when is_binary(value), do: {:ok, value}
-  def dump_to_native(_value, _constraints), do: :error
-
   defp validate_code(value) do
     case Localize.validate_territory_subdivision(value) do
       {:ok, code} -> {:ok, code}
-      {:error, _} -> {:error, message: "is not a valid subdivision"}
+      {:error, _reason} -> code_error()
     end
   end
 
