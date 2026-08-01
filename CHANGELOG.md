@@ -31,6 +31,15 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- `mix ash_localize.install` now registers a starting set of type short names
+  rather than all of them: `:locale`, `:territory`, `:timezone`,
+  `:currency_code`, `:count`, `:percentage`, `:ratio` and `:unit`. The package
+  ships around thirty, and the unit categories are domain-specific — a logistics
+  application wants `:mass` and `:volume`, a telemetry one wants `:acceleration`
+  and `:frequency`, and neither wants the other's. The installer now prints the
+  remainder as a notice instead of writing two dozen unused lines into your
+  `config.exs`.
+
 - Dependencies moved to the Localize 1.0 line, published 2026-07-30/31:
   `localize ~> 1.0` (from `~> 0.37`), `localize_person_names ~> 1.0` (from
   `~> 0.1`), `localize_address ~> 1.0` (from `~> 0.2`). No source changes were
