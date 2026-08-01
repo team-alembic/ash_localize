@@ -276,8 +276,10 @@ config :localize,
 mix localize.download_locales
 ```
 
-In CI, cache the download rather than repeating it; this repository's
-[workflow](.github/workflows/ci.yml) is a worked example.
+Run that in your Dockerfile or CI build step. It only reaches the network for a
+locale that is missing or version-stale on disk, and it halts on failure — so a
+CDN outage fails your build rather than quietly shipping `:und` output. Cache the
+cache directory if your CI makes that easy.
 
 ## Optional integrations
 

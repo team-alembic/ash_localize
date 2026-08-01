@@ -2,59 +2,37 @@ name: CI
 
 on:
   push:
+    tags: ["v*"]
     branches: [main]
   pull_request:
-
-env:
-  MIX_ENV: test
+    branches: [main]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  ash-ci:
+    uses: ash-project/ash/.github/workflows/ash-ci.yml@main
+    with:
+      # No data layer of our own — the test suite runs on ETS.
+      postgres: false
+      sqlite: false
 
-    steps:
-      - uses: actions/checkout@v4
+      # Nothing to check yet: no Spark DSL extension, and sobelow scans for
+      # Phoenix web vulnerabilities in a package with no web layer. Turn both on
+      # when the Phoenix bridge and the translations DSL land.
+      spark-formatter: false
+      spark-cheat-sheets: false
+      sobelow: false
 
-      - uses: erlef/setup-beam@v1
-        id: beam
-        with:
-          elixir-version: "1.20"
-          otp-version: "29"
+      # Not published, and there is no HEX_API_KEY or Pages set up for a private
+      # repository. Flip both when the first release is ready.
+      release: false
+      publish-docs: false
 
-      - name: Cache deps and build
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: mix-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
-          restore-keys: |
-            mix-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+      community-files: false
+      conventional-commit: false
+      changelog-lint: false
+      igniter-upgrade: false
+      reuse: false
 
-      # CLDR locale data: ~5MB of ETF fetched from the Localize CDN, not committed.
-      # The `test` alias runs `mix localize.download_locales`, which only reaches the
-      # network for a locale that is missing or version-stale in this directory — a
-      # warm cache makes it a filesystem check. A failed download halts the task, so a
-      # CDN outage fails the build rather than silently testing against the `:und`
-      # fallback, which would pass while asserting nothing.
-      #
-      # Keyed on config.exs (which holds :supported_locales) and mix.lock (which pins
-      # the localize version, and with it the CLDR data version), so changing either
-      # busts the cache.
-      - name: Cache CLDR locale data
-        uses: actions/cache@v4
-        with:
-          path: priv/localize
-          key: locales-${{ hashFiles('config/config.exs', 'mix.lock') }}
-
-      - run: mix deps.get
-
-      - run: mix deps.unlock --check-unused
-
-      - run: mix format --check-formatted
-
-      - run: mix compile --warnings-as-errors
-
-      - run: mix credo --strict
-
-      - run: mix test
+    permissions:
+      contents: read
+      security-events: write
