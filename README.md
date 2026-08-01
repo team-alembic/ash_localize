@@ -1,175 +1,42 @@
 # AshLocalize
 
-Ash Framework integration for [Localize](https://github.com/elixir-localize/localize),
+The Ash Framework layer over [Localize](https://github.com/elixir-localize/localize),
 the CLDR-backed localization library for Elixir.
 
-`ash_localize` gives Ash resources the locale-aware, CLDR-validated types every business
-application needs. locales, territories, currency codes, and units of measure, together with locale-aware formatting, translatable fields, and a single deterministic locale-resolution chain.
+Localize knows how to validate a territory code and how to render a number in
+German. It does not know anything about Ash. `ash_localize` is the join: Ash types
+that validate through Localize, calculations that render through it, and one place
+that decides which locale is active for a given operation.
 
-> **Status: early development.** Phases 1–2 and the units-of-measure types are
-> implemented — the `Locale`/`Territory`/`Subdivision`/`Timezone`/`CurrencyCode`
-> types and validations, `AshLocalize.Context` locale resolution, the locale-aware
-> formatting calculations, per-category unit types (`Speed`, `Mass`, `Length`, …),
-> the `PersonName`, `PhoneNumber`, and `PostalAddress` types, and the numeric
-> semantic types (`Count`, `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`).
-> See [`docs/PLAN.md`](docs/PLAN.md) for the roadmap.
+> **Status: early development.** The types, formatting, error messages and locale
+> resolution described below are implemented and tested. The AshPostgres,
+> AshPhoenix, AshGraphql and AshJsonApi integrations, and the translated-content
+> DSL, are not yet built — see [`docs/PLAN.md`](docs/PLAN.md).
 
-## Types you should never reinvent
+## Validated codes
 
-Every codebase grows its own half-broken versions of these — a `country` string nobody
-validates, a `currency` column that accepts `"dollars"`, a distance stored as a bare
-float with the unit hidden in a comment. `ash_localize` replaces them with real Ash
-types: CLDR-validated, canonicalised, and working on every data layer.
-
-### Units of Measure
-
-Physical quantities are first-class. Each category is its own type: the unit is
-schema metadata, the column stores a plain number, and the loaded value is a
-`%Localize.Unit{}` that knows its unit. The same handful of types span recipe,
-rockets and industrial robots, and everything in between:
+Most applications have a country column, a currency column, and a timezone column.
+Usually they are `:string`, and usually nothing checks them, so `"Straya"`,
+`"dollars"` and `"AEST"` all get in and fail somewhere further away.
 
 ```elixir
-# Everyday quantities
-attribute :trail_length,    :length       # base: meter
-attribute :ingredient_mass, :mass         # base: kilogram
-attribute :oven_temp,       :temperature  # base: kelvin
-attribute :floor_area,      :area         # base: square-meter
-attribute :tank_volume,     :volume       # base: cubic-meter
-
-# Engineering quantities
-attribute :delta_v,         :speed        # spacecraft Δv, base: meter-per-second
-attribute :engine_thrust,   :force        # thrust, base: newton
-attribute :array_power,     :power        # base: watt
-attribute :bus_voltage,     :voltage      # base: volt
-attribute :gimbal_angle,    :angle        # base: radian
-
-# Override the base unit per attribute
-attribute :cruise_speed, :speed, constraints: [base_unit: "knot"]
-```
-
-Writes accept any dimensionally-compatible unit and convert — `delta_v: {7.8,
-"kilometer-per-second"}` stores `7800` (m/s). A value from the wrong category — a mass
-into a `:speed` — is rejected. Because the column is a plain number, `sum`, `avg`,
-sorting, and filtering run natively in the data layer.
-
-Categories: `length` (alias `distance`), `mass`, `speed`, `acceleration`, `force`,
-`volume`, `area`, `temperature`, `energy`, `power`, `pressure`, `angle`, `frequency`,
-`digital`, `electric_current`, `voltage`. The generic `:unit` type, given an explicit
-`base_unit`, covers anything else — and `AshLocalize.UnitType` lets you define your
-own reusable types (*jerk*, specific impulse, anything you want). See the
-[Custom units guide](documentation/custom_units.md).
-
-### Locales, territories, subdivisions, timezones, and currency codes
-
-```elixir
-defmodule MyApp.Accounts.User do
-  use Ash.Resource, domain: MyApp.Accounts
-
-  attributes do
-    uuid_primary_key :id
-    attribute :preferred_locale, :locale          # e.g. "en", "ja-JP"
-    attribute :country,          :territory       # e.g. "AU", "JP"
-    attribute :state,            :subdivision,    # e.g. "caon", "usca"
-              constraints: [territory: :US]
-    attribute :timezone,         :timezone        # e.g. "Australia/Sydney"
-    attribute :billing_currency, :currency_code   # e.g. "AUD", "JPY"
-  end
+attributes do
+  attribute :preferred_locale, :locale        # "en", "ja-JP"
+  attribute :country,          :territory     # "AU", "JP"
+  attribute :state,            :subdivision, constraints: [territory: :US]
+  attribute :timezone,         :timezone      # "Australia/Sydney"
+  attribute :billing_currency, :currency_code # "AUD", "JPY"
 end
 ```
 
-Each is a plain `Ash.Type` storing a string, with casting and validation routed through
-Localize. Casting normalises input to CLDR's canonical form (`"en-us"` → `"en-US"`,
-`"Australia/ACT"` → `"Australia/Sydney"`) and rejects values CLDR does not recognise —
-both malformed strings and well-formed but unknown subtags. The `:subdivision`
-type's optional `:territory` constraint additionally rejects subdivisions outside
-the named country.
+Each stores a string, so every data layer works unchanged. Casting goes through
+Localize: unknown values are rejected — both malformed strings and well-formed but
+non-existent subtags — and accepted values are stored canonically. `"en-us"` becomes
+`"en-US"`, `"aud"` becomes `"AUD"`, and the IANA alias `"Australia/ACT"` becomes
+`"Australia/Sydney"`, so equality comparisons stop depending on how the value was
+typed.
 
-### Person names
-
-```elixir
-attribute :author_name, :person_name
-```
-
-Stored as name parts (`given_name`, `surname`, `title`, …), rendered with culturally
-correct order, formality, and addressing by `FormatPersonName` — `"Ada Lovelace"` or
-`"Dr. Lovelace"` depending on locale and usage. Needs the optional `localize_person_names`
-dependency.
-
-### Numeric semantic types
-
-Numbers carry meaning. These types capture *what* a number is — a count of something,
-a rank, a percentage — and render it locale-correctly:
-
-```elixir
-attribute :comment_count, :count, constraints: [of: :comments]
-attribute :rank,          :ordinal
-attribute :completion,    :percentage              # 0.75 → "75%"
-attribute :compression,   :ratio                   # 0.75 → "3⁄4"
-attribute :priority,      :score, constraints: [min: 0, max: 100]
-attribute :customer_rating, :rating, constraints: [out_of: 5, of: :stars]
-```
-
-Each pairs with a `Format*` calculation. `FormatCount` is plural-aware via MF2 — the
-same template can render `"No comments"` / `"1 comment"` / `"27 comments"` in English
-and `"3件のコメント"` in Japanese; the `:of` tag is the key the future translation
-catalogue will use to pick locale-specific templates and counter words.
-
-### Phone numbers and postal addresses
-
-```elixir
-attribute :contact_phone, :phone_number
-attribute :shipping_address, :postal_address
-```
-
-`:phone_number` parses and validates via libphonenumber, stores E.164, and formats as
-`:international` / `:national` / `:e164`. `:postal_address` holds CLDR address
-components and renders country-correct, multi-line labels. Both need optional
-dependencies — see [Optional integrations](#optional-integrations).
-
-## Installation
-
-With [Igniter](https://hexdocs.pm/igniter) — adds the dep and writes the config
-for you, detecting any optional satellite packages already in your deps:
-
-```bash
-mix igniter.install ash_localize
-```
-
-Or manually — add the dep:
-
-```elixir
-def deps do
-  [
-    {:ash_localize, "~> 0.1"}
-  ]
-end
-```
-
-Then configure an application default locale. It is the final arm of locale
-resolution; without it, resolution reports `{:error, :no_locale}` rather than a
-silent `nil`:
-
-```elixir
-config :ash_localize, default_locale: "en"
-```
-
-Register the short type names you use so resources can refer to them by atom:
-
-```elixir
-config :ash, :custom_types,
-  locale: AshLocalize.Types.Locale,
-  territory: AshLocalize.Types.Territory,
-  currency_code: AshLocalize.Types.CurrencyCode,
-  # unit-of-measure types — register the categories you use
-  speed: AshLocalize.Types.Speed,
-  mass: AshLocalize.Types.Mass,
-  length: AshLocalize.Types.Length
-```
-
-## Validations
-
-When you would rather keep a plain `:string` attribute but still guard its contents,
-use the validations directly:
+If you would rather keep a plain `:string` and only guard its contents:
 
 ```elixir
 validations do
@@ -179,120 +46,254 @@ validations do
 end
 ```
 
-## Locale resolution
-
-`AshLocalize.Context.locale/2` resolves the active locale from one deterministic chain,
-most specific first:
-
-1. **Explicit argument** — a `:locale` action/calculation argument.
-2. **Ash context** — the `:locale` key in `Ash.Context`.
-3. **Actor-derived** — opt-in via the `:actor_locale` option.
-4. **Application default** — `config :ash_localize, default_locale: ...`.
-
-The process dictionary and tenant are deliberately excluded; see `docs/PLAN.md` for the
-rationale.
-
-```elixir
-{:ok, "ja-JP"} = AshLocalize.Context.locale(%{locale: "ja-JP"}, [])
-"en" = AshLocalize.Context.locale!(%{}, [])
-```
-
 ## Formatting
 
-The library's stance is that **values carry their dimension** — currency for
-money, base unit for `:speed`, IANA name for `:timezone`, full BCP 47 tag for
-`:locale`, the noun for a `:count`. So the resource picks honest types, and the
-rendering side just dispatches on the value:
+`to_string/1` on a `Decimal` gives `1234.5` to every user on earth. Rendering it as
+`1.234,5` for a German one means knowing the locale and calling the right Localize
+function for the value's type, at every call site.
+
+`AshLocalize.format/1` dispatches on the value:
 
 ```elixir
-attributes do
-  # %Money{} — amount and currency are one value.
-  attribute :price, AshMoney.Types.Money, public?: true
+AshLocalize.format(order.total)        # "$1,234.50"
+AshLocalize.format(order.starts_on)    # "May 22, 2026"
+AshLocalize.format(order.tags)         # "apples, oranges, and pears"
+AshLocalize.format(order.delta_v)      # "7,800 m/s"
 
-  # A dimensioned quantity. Base unit is type metadata (here: m/s); writes
-  # accept any compatible unit and convert. Loaded value is a %Localize.Unit{}.
-  attribute :delta_v, :speed, public?: true
-
-  # A count of something. `:of` names the noun, which drives plural-aware
-  # rendering ("No comments" / "1 comment" / "27 comments" in en; "27件のコメント"
-  # in ja) and is the key the translation catalogue will resolve.
-  attribute :comment_count, :count, constraints: [of: :comments], public?: true
-
-  # Date and UTC datetime rendered with locale-correct field ordering.
-  attribute :starts_on, :date,         public?: true
-  attribute :ends_at,   :utc_datetime, public?: true
-
-  # A list whose joiner depends on locale ("a, b, and c" vs "a、b、c").
-  attribute :tags, {:array, :string}, public?: true
-end
+AshLocalize.format(order.total, locale: "de")      # "1.234,50 $"
+AshLocalize.format(order.starts_on, locale: "ja")  # "2026/05/22"
 ```
 
-In a Phoenix template, LiveView, exporter, or anywhere you already have the
-value in hand, `AshLocalize.format/1` dispatches on the value's type:
+This is the upstream `Localize.Chars` protocol, which already covers integers,
+floats, decimals, dates, times, datetimes, ranges, lists, durations and language
+tags. `ash_localize` adds one implementation of its own, for `%Money{}`. Anything
+Localize or its satellite packages can render, `format/1` renders.
 
-```eex
-<%= AshLocalize.format(@order.price) %>           <!-- "$1,234.50" or "¥1,500" -->
-<%= AshLocalize.format(@order.delta_v) %>         <!-- "7,800 m/s"             -->
-<%= AshLocalize.format(@order.starts_on) %>       <!-- "May 22, 2026"          -->
-<%= AshLocalize.format(@order.tags) %>            <!-- "apples, oranges, and pears" -->
-```
-
-For values whose source type can't disambiguate the formatting — a count of
-*what?*, an ordinal vs a cardinal, a percentage vs a ratio — reach for the
-named shortcut that supplies the missing semantic. (These render against the
-`:of` constraint or arguments on the calc; the translation catalogue picks the
-locale-specific template.)
-
-For API consumers (AshGraphQL, AshJsonApi, AshAdmin) that need a *field* rather
-than an Elixir call, define a calculation that wraps `AshLocalize.format/2`:
+For API consumers that need a *field* rather than an Elixir call — AshGraphql,
+AshJsonApi, AshAdmin — there are fifteen `Format*` calculations:
 
 ```elixir
 calculations do
-  calculate :price_label, :string,
-    {AshLocalize.Calculations.FormatCurrency, field: :price}
+  calculate :total_label, :string,
+    {AshLocalize.Calculations.FormatCurrency, field: :total}
 
-  calculate :delta_v_label, :string,
-    {AshLocalize.Calculations.FormatUnit, field: :delta_v}
-
-  calculate :comment_count_label, :string,
-    {AshLocalize.Calculations.FormatCount, field: :comment_count,
-     if_zero: "No comments", one: "1 comment", other: "{$count} comments"}
+  calculate :starts_on_label, :string,
+    {AshLocalize.Calculations.FormatDate, field: :starts_on}
 end
 ```
 
-A `nil` source value always yields `nil`. Add a `:locale` argument to a
-calculation, or pass `locale:` to `AshLocalize.format/2`, to feed the
-explicit-argument arm of locale resolution.
+They read the locale from calculation context rather than the process dictionary,
+so they stay correct under Ash's parallel loads. A `nil` source always yields `nil`.
 
-### Money sources
+## Error messages
 
-`AshLocalize.format/1` natively unpacks a `%Money{}` value (from
-[ex_money](https://hexdocs.pm/ex_money), or the loaded value of
-[`AshMoney.Types.Money`](https://hexdocs.pm/ash_money)) — amount and currency
-travel together. Splitting them into two attributes invites the same class of
-bug as storing `"distance: 100"` with the unit hidden in a comment.
+Ash marks its error messages for extraction and ships them in a `.pot` file. The
+extraction half works. The rendering half has three problems, and all three are in
+the *values* rather than the words, so no `.po` file can fix them:
 
-For legacy resources where money is already split across two columns,
-`FormatCurrency` also takes a fixed `currency: "USD"` or
-`currency_field: :some_attr`. Use these only as a migration ramp toward Money.
+- Interpolated numbers are unformatted, so a German user reads `1234.5`.
+- Lists arrive joined with an English comma, decided before any translator sees it.
+- There is no plural selection in any locale. Gettext selects on a variable named
+  `count`, and **none** of Ash's 58 shipped messages use that name — the counted
+  ones are named after the constraint (`%{at_least}`, `%{precision}`). Every Ash
+  error renders singular-only, so Russian gets one form where it needs three.
+
+```elixir
+AshLocalize.translate_error({"must be less than or equal to %{max}", max: 1234}, locale: "de")
+#=> "must be less than or equal to 1.234"
+```
+
+That works with nothing translated. Where a MessageFormat 2 translation exists, the
+plural is selected properly regardless of what the variable is called:
+
+```
+ru, selecting on `at_least`:
+  1  → нужно указать минимум 1 поле     (one)
+  5  → нужно указать минимум 5 полей    (many)
+  21 → нужно указать минимум 21 поле    (one)
+```
+
+Translations live in a catalogue you can replace — see
+`AshLocalize.ErrorMessage.Catalogue`. The shipped one is a seed.
+
+## Numbers that mean something
+
+`:integer` stores a number and discards what it was counting, which is why
+pluralising it later needs the noun passed in by hand at every call site.
+
+```elixir
+attribute :comment_count, :count, constraints: [of: :comments]
+attribute :rank,          :ordinal
+attribute :completion,    :percentage                            # 0.75 → "75%"
+attribute :compression,   :ratio                                 # 0.75 → "3⁄4"
+attribute :priority,      :score,  constraints: [min: 0, max: 100]
+attribute :stars,         :rating, constraints: [out_of: 5, of: :stars]
+```
+
+Storage stays a plain number, so `sum`, `avg`, sorting and filtering run natively.
+The constraint is metadata that makes correct rendering possible: `FormatCount` uses
+`:of` to select a plural form, and `:ordinal` renders `"1st"`, `"1er"` or `"第1"`
+rather than `1`.
+
+## Money
+
+Two columns — an amount and a currency code — drift. One gets written and the other
+does not, or a `sum` runs across mixed currencies.
+
+```elixir
+attribute :price, AshMoney.Types.Money
+```
+
+`ash_money` owns that type; `ash_localize` adds the rendering, pulling the currency
+from the value itself. `FormatCurrency` also accepts a fixed `currency: "USD"` or a
+`currency_field: :some_attr` for schemas already split across two columns — use them
+as a migration ramp, not a destination.
+
+## Units of measure
+
+A distance stored as a bare float has its unit in a comment, or in a column name, or
+in nobody's head. Conversions then happen wherever someone remembers to do them.
+
+```elixir
+attribute :trail_length, :length       # base: meter
+attribute :oven_temp,    :temperature  # base: kelvin
+attribute :delta_v,      :speed        # base: meter-per-second
+
+attribute :cruise_speed, :speed, constraints: [base_unit: "knot"]
+```
+
+The unit is type metadata. The column holds a plain number in the base unit, so
+aggregates and sorting stay native on every data layer, and the loaded value is a
+`%Localize.Unit{}` that knows what it is. Writes take any dimensionally compatible
+unit and convert — `delta_v: {7.8, "kilometer-per-second"}` stores `7800` — and a
+mass written into a `:speed` is rejected.
+
+Sixteen categories ship: `length` (with `distance` as an alias), `mass`, `speed`,
+`acceleration`, `force`, `volume`, `area`, `temperature`, `energy`, `power`,
+`pressure`, `angle`, `frequency`, `digital`, `electric_current`, `voltage`. The
+generic `:unit` covers anything else given a `base_unit`, and you can define your own
+— see [Custom units](documentation/custom_units.md).
+
+## Names, phone numbers, addresses
+
+"First name" and "last name" describe a minority of the world's names, and a single
+`address` textarea cannot be rendered correctly for two different countries.
+
+```elixir
+attribute :author_name,      :person_name
+attribute :contact_phone,    :phone_number
+attribute :shipping_address, :postal_address
+```
+
+Names store their parts and render in culturally correct order and formality. Phone
+numbers are parsed and validated with libphonenumber and stored as E.164, then
+rendered `:international`, `:national` or `:e164`. Addresses store CLDR components
+and render country-correct multi-line labels.
+
+Each needs its optional dependency — see [Optional integrations](#optional-integrations).
+
+## Which locale is active
+
+Everything above needs to know the locale. Localize keeps it in the process
+dictionary, which does not survive the processes Ash spawns for parallel loads and
+async calculations — so a value formatted inside one silently comes back in the
+default locale.
+
+`AshLocalize.Context.locale/2` resolves it from one chain, most specific first:
+
+1. **Explicit argument** — a `:locale` action or calculation argument.
+2. **Ash context** — the `:locale` key, which Ash propagates.
+3. **Actor-derived** — opt-in, via the `:actor_locale` option.
+4. **Application default** — `config :ash_localize, default_locale: ...`.
+
+```elixir
+{:ok, "ja-JP"} = AshLocalize.Context.locale(%{locale: "ja-JP"}, [])
+```
+
+The process dictionary is deliberately not an arm of that chain, and neither is
+tenant. Unset with no default configured returns `{:error, :no_locale}` rather than
+a silent `nil`.
+
+## Adding your own types
+
+Three kinds, three macros. The distinction is what the value *is*:
+
+| Kind | The value is | Macro |
+| --- | --- | --- |
+| Code | a member of a controlled vocabulary | `AshLocalize.CodeType` |
+| Quantity | a dimensionless magnitude | `AshLocalize.QuantityType` |
+| Unit | a dimensioned magnitude | `AshLocalize.UnitType` |
+
+A code cannot be ordered or aggregated — comparing two is equality, not magnitude.
+A quantity can be; whether it carries a dimension decides the other two.
+
+```bash
+mix ash_localize.gen.type MyApp.Types.Script --kind code \
+  --validator Localize.validate_script --short-name script
+```
+
+See [Adding a type](documentation/custom_types.md).
+
+## Installation
+
+```bash
+mix igniter.install ash_localize
+```
+
+That adds the dependency, sets a default locale, registers a starting set of short
+type names, and detects which optional packages you already have. Or add it by hand:
+
+```elixir
+{:ash_localize, "~> 0.1"}
+```
+
+```elixir
+config :ash_localize, default_locale: "en"
+
+config :ash, :custom_types,
+  locale: AshLocalize.Types.Locale,
+  territory: AshLocalize.Types.Territory,
+  currency_code: AshLocalize.Types.CurrencyCode
+```
+
+Short names are optional — a type is always usable by module — but they are what
+lets a resource write `attribute :country, :territory`.
+
+### Locale data
+
+Localize ships `:en` and fetches every other locale from its CDN. **A locale it
+cannot find falls back to `:und` and still returns `{:ok, ...}`** — the output is
+wrong for the requested locale and nothing in the return value says so. Configure
+what you support and download it at build time:
+
+```elixir
+config :localize,
+  otp_app: :my_app,
+  supported_locales: [:en, :de, :fr, :ja]
+```
+
+```bash
+mix localize.download_locales
+```
+
+In CI, cache the download rather than repeating it; this repository's
+[workflow](.github/workflows/ci.yml) is a worked example.
 
 ## Optional integrations
 
-`ash_localize` is a single package. Its heavier capabilities are optional dependencies,
-compiled in only when your application also declares the upstream package:
+One package. The heavier capabilities compile in only when your application also
+declares the upstream package, so declaring nothing costs nothing:
 
-| Add to your deps                      | Unlocks                                           |
-| ------------------------------------- | ------------------------------------------------- |
-| `ash_money`                           | the `:money` type and `%Money{}` formatting       |
-| `localize_phone_number`               | the `:phone_number` type (libphonenumber)         |
-| `localize_address`                    | the `:postal_address` type (libpostal)            |
-| `localize_person_names`               | the `:person_name` type                           |
-| `localize_translate`                  | the `LocalizeTranslate` translation store         |
-| `ash_postgres` + `localize_sql`       | native composite types, ICU collation, migrations |
-| `ash_phoenix` + `localize_web`        | the locale plug and `<.ash_input>` form helpers   |
+| Add to your deps | Unlocks |
+| --- | --- |
+| `ash_money` | `%Money{}` formatting, and its `:money` type |
+| `localize_person_names` | `:person_name` |
+| `localize_phone_number` | `:phone_number` (libphonenumber) |
+| `localize_address` | `:postal_address` (libpostal) |
 
-Without them, the core — locale/territory/currency/unit types, formatting, and
-validations — works on every Ash data layer with no extra weight.
+Planned, and not yet built: `ash_postgres` + `localize_sql` for native composite
+types, ICU collation and migrations; `ash_phoenix` + `localize_web` for the locale
+plug and form helpers; `localize_translate` for translated content.
 
 ## License
 
