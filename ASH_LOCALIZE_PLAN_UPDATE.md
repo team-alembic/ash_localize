@@ -1,6 +1,6 @@
 # Localize and Ash: an integrated plan
 
-Based upon the initial plan built by Alembic to reflect a potentially broader scope and proposing answers to the five open questions in the original plan.
+Builds on the initial `ash_localize` plan to reflect a potentially broader scope, and proposes answers to the five open questions it left open.
 
 ## Scope
 
@@ -43,11 +43,11 @@ Implemented and on `main` in `ash_localize`, across three commits.
 
 **Units of measure as per-category types.** `Speed`, `Mass`, `Length`, `Temperature`, `Area`, `Volume`, `Force`, `Power`, `Voltage`, `Angle`, `Energy`, `Pressure`, `Frequency`, `Digital`, `ElectricCurrent`, `Acceleration`, over a shared engine, with a generic `:unit` escape hatch and `AshLocalize.UnitType` for defining new ones.
 
-This design is better than the one Kip's earlier assessment proposed. That assessment suggested following `ash_money` — a composite `{value, unit}` column, with `localize_units_sql` supplying the storage. `ash_localize` instead makes the unit *type metadata*: the column holds a plain number in the category's base unit, writes accept any dimensionally-compatible unit and convert (`{7.8, "kilometer-per-second"}` stores `7800`), cross-category writes are rejected, and the loaded value is a `%Localize.Unit{}`. Because the column is numeric, `sum`, `avg`, sorting and filtering run natively on every data layer — which the composite approach forfeits. Alembic changed to this mid-implementation and recorded why.
+This design is better than the one an earlier assessment proposed. That assessment suggested following `ash_money` — a composite `{value, unit}` column, with `localize_units_sql` supplying the storage. `ash_localize` instead makes the unit *type metadata*: the column holds a plain number in the category's base unit, writes accept any dimensionally-compatible unit and convert (`{7.8, "kilometer-per-second"}` stores `7800`), cross-category writes are rejected, and the loaded value is a `%Localize.Unit{}`. Because the column is numeric, `sum`, `avg`, sorting and filtering run natively on every data layer — which the composite approach forfeits. The design changed to this mid-implementation and the reasoning was recorded.
 
 **Composite domain types.** `PersonName` (name parts, rendered with culturally correct order and formality), `PhoneNumber` (parsed and validated via libphonenumber, stored E.164), `PostalAddress` (CLDR components, country-correct multi-line rendering). Each behind an optional dependency on the corresponding satellite package.
 
-**Numeric semantic types.** `Count` (plural-aware via MF2, with an `:of` tag naming what is being counted), `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`. These capture what a number *means* so it can be rendered correctly, and have no counterpart in Kip's earlier assessment.
+**Numeric semantic types.** `Count` (plural-aware via MF2, with an `:of` tag naming what is being counted), `Ordinal`, `Percentage`, `Ratio`, `Score`, `Rating`. These capture what a number *means* so it can be rendered correctly, and have no counterpart in the earlier assessment.
 
 **Formatting as calculations.** Fifteen `Format*` calculations — number, currency, date, datetime, list, unit, address, person name, phone, count, ordinal, percent, ratio, score, rating — reading the resolved locale from calculation context, so they are correct under async.
 
@@ -63,11 +63,11 @@ Two things `ash_localize` is working from have gone out of date, both cheap to f
 
 **Package renames.** `PLAN.md` refers to `localize_units_sql` fand `localize_phonenumber`. Both were retired on 2026-07-31: `localize_units_sql` merged into **`localize_sql`**, which now owns the shared DDL machinery; `localize_phonenumber` became **`localize_phone_number`**, package, repo and directory.
 
-**The ecosystem is 1.0.** Published 2026-07-31 and 2026-08-01: `localize`, `calendrical`, `intl`, `unity`, `localize_sql`, `localize_web`, `localize_address`, `localize_phone_number`, `localize_person_names` and `localize_lua` all at 1.0.0; `localize_translate` at 0.2.0, held pre-1.0 pending agreement on the store behaviour; the input components at 0.2.0; `localize_mcp` at 0.2.0; `ex_money` 6.2.0 and `ex_money_sql` 2.1.0 rebuilt on it. This removes the largest risk Kip's earlier assessment recorded — that Ash would not take a dependency on a release candidate — and the version-alignment prerequisite it listed is done.
+**The ecosystem is 1.0.** Published 2026-07-31 and 2026-08-01: `localize`, `calendrical`, `intl`, `unity`, `localize_sql`, `localize_web`, `localize_address`, `localize_phone_number`, `localize_person_names` and `localize_lua` all at 1.0.0; `localize_translate` at 0.2.0, held pre-1.0 pending agreement on the store behaviour; the input components at 0.2.0; `localize_mcp` at 0.2.0; `ex_money` 6.2.0 and `ex_money_sql` 2.1.0 rebuilt on it. This removes the largest risk the earlier assessment recorded — that Ash would not take a dependency on a release candidate — and the version-alignment prerequisite it listed is done.
 
 ### Answers to the five open questions
 
-Kip proposes the following answers to the questions raised in `ash_localize`'s `PLAN.md`.
+The following answers are proposed to the questions raised in `ash_localize`'s `PLAN.md`.
 
 1. **`localize_translate` interface shape.** It is behaviour-shaped, not Ecto-coupled — see *The store behaviour* below.
 
@@ -252,7 +252,7 @@ Money is not on this list, because it is done. `ex_money` 6.2 is Localize-backed
 
 ## Part VI — Sequencing
 
-One roadmap across both projects. **[A]** is `ash_localize`, Alembic's to build; **[L]** is Localize-side, Kip's; **[U]** needs a change to Ash core and a conversation with its maintainers.
+One roadmap across both projects. **[A]** is `ash_localize`'s to build; **[L]** is Localize-side; **[U]** needs a change to Ash core and a conversation with its maintainers.
 
 **Now — no dependencies, no coordination**
 
@@ -298,7 +298,7 @@ Together those make the point without asking for anything: Ash already ships Loc
 
 ## Risks
 
-* **Ownership.** `ash_localize` is Alembic's. This plan contributes to it rather than forking or paralleling it. Localize-side work that duplicates it is waste, and worse, it splits the story when it reaches the Ash core team.
+* **Ownership.** This plan contributes to `ash_localize` rather than forking or paralleling it. Localize-side work that duplicates it is waste, and worse, it splits the story when it reaches the Ash core team.
 * **Ash guards its core.** A 54-callback behaviour is already a lot; adding two more, even optional ones, needs a clear argument that they belong in core rather than an extension. The argument is that display is not optional in a framework shipping an admin UI, a form library and three serializers — it is currently just implicit and inconsistent.
 * **Breadth reads as sprawl.** Fifteen packages is a lot of surface for a framework team to evaluate. Lead with one problem and one fix; `ash_localize`'s single-package-with-optional-dependencies layout is the right answer and should be described that way.
 * **Serialization boundaries must hold.** The likeliest way this goes wrong is a well-meaning PR making `ash_json_api` emit localized numbers. State the principle in the guides, loudly, before the code lands.

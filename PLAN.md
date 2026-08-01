@@ -1,6 +1,6 @@
 # ash_localize — design plan
 
-Draft for collaborator review. Reasonable assumptions noted inline; open questions for Kip listed at the end. Nothing here is locked.
+Draft for collaborator review. Reasonable assumptions noted inline; open questions for upstream listed at the end. Nothing here is locked.
 
 ## Status
 
@@ -338,7 +338,7 @@ Phased by user-visible value. Translations are deliberately sequenced last.
 8. **Translations: `SiblingResource` store.** Spark transformer that generates the sister translations resource. Opt-in alternative for apps that need translation workflows, filter-by-translated-text in Ash expressions, or a cleaner migration path to `LocalizeTranslate`.
 9. **`LocalizeTranslate` adapter.** Lands once the upstream interface is stable.
 
-## Open questions for Kip
+## Open questions for upstream
 
 (Plan proceeds on assumptions noted below; these are confirmations, not blockers.)
 
