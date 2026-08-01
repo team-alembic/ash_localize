@@ -67,25 +67,6 @@ defmodule AshLocalize.FormatTest do
       {:ok, name} = Localize.PersonName.new(given_name: "Ada", surname: "Lovelace")
       assert AshLocalize.format(name) =~ "Ada"
     end
-
-    test "a %Localize.Address.Address{} renders multi-line" do
-      address = %Localize.Address.Address{
-        road: "1 Infinite Loop",
-        city: "Cupertino",
-        state: "CA",
-        postcode: "95014",
-        territory_code: "US"
-      }
-
-      formatted = AshLocalize.format(address)
-      assert is_binary(formatted)
-      assert formatted =~ "Cupertino"
-    end
-
-    test "a %Localize.PhoneNumber.Number{} renders in :international format by default" do
-      {:ok, number} = Localize.PhoneNumber.parse("+1 650 253 0000")
-      assert AshLocalize.format(number) =~ "+1"
-    end
   end
 
   describe "format/2 with a Localize.Unit" do

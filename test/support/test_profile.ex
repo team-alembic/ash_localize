@@ -9,6 +9,11 @@ defmodule AshLocalize.Test.Profile do
     domain: AshLocalize.Test.Domain,
     data_layer: Ash.DataLayer.Ets
 
+  # libphonenumber / libpostal are opt-in — see native_deps/0 in mix.exs. Without
+  # them those two types do not exist, so the attributes and calculations that use
+  # them cannot be declared at all.
+  @native System.get_env("ASH_LOCALIZE_NATIVE") in ~w(1 true)
+
   ets do
     private? true
   end
@@ -33,8 +38,11 @@ defmodule AshLocalize.Test.Profile do
 
     attribute :delta_v, :speed, public?: true
     attribute :author_name, :person_name, public?: true
-    attribute :contact_phone, :phone_number, public?: true
-    attribute :shipping_address, :postal_address, public?: true
+
+    if @native do
+      attribute :contact_phone, :phone_number, public?: true
+      attribute :shipping_address, :postal_address, public?: true
+    end
   end
 
   validations do
@@ -75,12 +83,14 @@ defmodule AshLocalize.Test.Profile do
               :string,
               {AshLocalize.Calculations.FormatPersonName, field: :author_name, usage: :referring}
 
-    calculate :formatted_phone,
-              :string,
-              {AshLocalize.Calculations.FormatPhone, field: :contact_phone}
+    if @native do
+      calculate :formatted_phone,
+                :string,
+                {AshLocalize.Calculations.FormatPhone, field: :contact_phone}
 
-    calculate :formatted_address,
-              :string,
-              {AshLocalize.Calculations.FormatAddress, field: :shipping_address}
+      calculate :formatted_address,
+                :string,
+                {AshLocalize.Calculations.FormatAddress, field: :shipping_address}
+    end
   end
 end

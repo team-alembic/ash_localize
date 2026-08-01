@@ -14,8 +14,6 @@ config :ash, :custom_types,
   timezone: AshLocalize.Types.Timezone,
   currency_code: AshLocalize.Types.CurrencyCode,
   person_name: AshLocalize.Types.PersonName,
-  phone_number: AshLocalize.Types.PhoneNumber,
-  postal_address: AshLocalize.Types.PostalAddress,
   count: AshLocalize.Types.Count,
   ordinal: AshLocalize.Types.Ordinal,
   percentage: AshLocalize.Types.Percentage,
@@ -57,3 +55,12 @@ config :ex_money, auto_start_exchange_rate_service: false
 config :localize,
   otp_app: :ash_localize,
   supported_locales: [:en, :de, :fr, :es, :ja, :ru, :ar, :"zh-Hant"]
+
+# libphonenumber / libpostal are opt-in — see native_deps/0 in mix.exs. Registering
+# a short name whose module does not exist makes every resource using it fail to
+# compile, so these two are registered only when the packages are present.
+if System.get_env("ASH_LOCALIZE_NATIVE") in ~w(1 true) do
+  config :ash, :custom_types,
+    phone_number: AshLocalize.Types.PhoneNumber,
+    postal_address: AshLocalize.Types.PostalAddress
+end

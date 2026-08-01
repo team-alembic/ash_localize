@@ -27,6 +27,12 @@ jobs:
       release: false
       publish-docs: false
 
+      # The lockfile carries localize_phone_number and localize_address, which are
+      # opt-in (see native_deps/0 in mix.exs), so they read as unused in this
+      # configuration. The native job below runs the check with every dep present,
+      # where the answer is meaningful.
+      unused-deps: false
+
       community-files: false
       conventional-commit: false
       changelog-lint: false

@@ -41,15 +41,35 @@ defmodule AshLocalize.MixProject do
       {:ash, "~> 3.5"},
       {:localize, "~> 1.0"},
       {:localize_person_names, "~> 1.0", optional: true},
-      {:localize_address, "~> 1.0", optional: true},
-      {:localize_phone_number, "~> 1.0", optional: true},
       {:ash_money, "~> 0.2.6", optional: true},
       {:igniter, "~> 0.8", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
-    ]
+    ] ++ native_deps()
   end
+
+  # `localize_phone_number` and `localize_address` build NIFs against
+  # libphonenumber and libpostal. Neither is on a stock runner and libpostal is
+  # not packaged at all, so declaring them unconditionally means the project
+  # cannot compile anywhere the system libraries are absent.
+  #
+  # They are opt-in instead. `ASH_LOCALIZE_NATIVE=1 mix test` runs the full suite
+  # once the libraries are installed; without it those two types are absent, which
+  # is exactly the state a consumer who has not added the packages is in — the
+  # types are `Code.ensure_loaded?` guarded either way, so nothing else changes.
+  defp native_deps do
+    if native?() do
+      [
+        {:localize_phone_number, "~> 1.0", optional: true},
+        {:localize_address, "~> 1.0", optional: true}
+      ]
+    else
+      []
+    end
+  end
+
+  defp native?, do: System.get_env("ASH_LOCALIZE_NATIVE") in ~w(1 true)
 
   defp package do
     [
