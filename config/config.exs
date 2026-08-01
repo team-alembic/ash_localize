@@ -45,3 +45,15 @@ config :ash, :custom_types,
 # format `%Money{}` values through `Localize.Chars` — no conversion, no rates —
 # so opt out rather than start a retriever we never ask anything of.
 config :ex_money, auto_start_exchange_rate_service: false
+
+# Localize ships `:en` only; every other locale is fetched from the CDN and
+# cached on disk. A miss falls back to `:und` *silently* — still `{:ok, ...}`,
+# just formatted wrong — so a test suite without this configuration asserts
+# English output under a German locale name and passes.
+#
+# `:otp_app` anchors the cache at `Application.app_dir(:ash_localize, ...)`,
+# which re-resolves per environment, so `mix test` and mix tasks agree. Populate
+# it with `mix localize.download_locales` — wired into the `test` alias.
+config :localize,
+  otp_app: :ash_localize,
+  supported_locales: [:en, :de, :fr, :es, :ja, :ru, :ar, :"zh-Hant"]

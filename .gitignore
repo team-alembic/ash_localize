@@ -19,6 +19,13 @@ ash_localize-*.tar
 # root; localize_address ships its own templates, so ash_localize needs no copy.
 /priv/address_templates.etf
 
+# CLDR locale data, fetched by `mix localize.download_locales` (wired into the
+# `test` alias). ~5MB for the eight locales the suite exercises, and reproducible
+# from config, so it is fetched rather than committed. Mix symlinks
+# _build/<env>/lib/ash_localize/priv to this directory, which is why downloads
+# anchored at `otp_app: :ash_localize` land here.
+/priv/localize/
+
 # Backup files from sed -i.bak etc.
 *.bak
 

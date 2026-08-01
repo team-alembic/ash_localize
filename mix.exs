@@ -12,6 +12,7 @@ defmodule AshLocalize.MixProject do
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: aliases(),
       deps: deps(),
       package: package(),
       docs: docs(),
@@ -30,6 +31,10 @@ defmodule AshLocalize.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp aliases do
+    [test: ["localize.download_locales", "test"]]
+  end
 
   defp deps do
     [

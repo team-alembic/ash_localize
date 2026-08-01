@@ -1,10 +1,16 @@
 defmodule AshLocalize.FormatTest do
   use ExUnit.Case, async: true
 
-  # Only :en is loaded by default in this test env. The :locale opt is plumbed
-  # through to Localize on every implementation, but exercising non-en locales
-  # requires explicit locale-data loading (see README for production setup), so
-  # the assertions below stay in :en.
+  # The locales asserted below are the ones in `:supported_locales`, fetched into
+  # the on-disk cache by the `test` alias. Without that data Localize falls back
+  # to `:und` and still returns `{:ok, ...}`, so these assertions would quietly
+  # become "en output under a non-en locale name" rather than failing.
+
+  # Grouping separators differ in *kind*, not just presence: fr uses a narrow
+  # no-break space and ru a no-break space. Normalise them so the assertions read
+  # as the reader expects while still proving the separator is a space and not a
+  # comma or a dot.
+  defp squish(string), do: String.replace(string, ~r/[\x{00A0}\x{202F}\x{2009}]/u, " ")
 
   describe "format/1,2 — value-dispatched formatting" do
     test "nil passes through" do
@@ -49,10 +55,10 @@ defmodule AshLocalize.FormatTest do
       assert AshLocalize.format(["apples", "oranges", "pears"]) == "apples, oranges, and pears"
     end
 
-    test "raises Protocol.UndefinedError for an unformattable value" do
-      assert_raise Protocol.UndefinedError, fn ->
-        AshLocalize.format(:some_atom)
-      end
+    test "an atom falls through to Kernel.to_string via the Localize.Chars Any fallback" do
+      # Localize.Chars has @fallback_to_any — unknown types route through
+      # Kernel.to_string rather than raising, which is the friendlier default.
+      assert AshLocalize.format(:some_atom) == "some_atom"
     end
   end
 
@@ -88,6 +94,86 @@ defmodule AshLocalize.FormatTest do
       formatted = AshLocalize.format(unit)
       assert is_binary(formatted)
       assert formatted =~ "7,800"
+    end
+  end
+
+  describe "format/2 across locales" do
+    test "integer grouping separators follow the locale" do
+      for {locale, expected} <- [
+            {"en", "1,234,567"},
+            {"de", "1.234.567"},
+            {"es", "1.234.567"},
+            {"ja", "1,234,567"},
+            {"fr", "1 234 567"},
+            {"ru", "1 234 567"}
+          ] do
+        assert squish(AshLocalize.format(1_234_567, locale: locale)) == expected,
+               "expected #{locale} to group as #{expected}"
+      end
+    end
+
+    test "decimal separators follow the locale" do
+      d = Decimal.new("1234.5")
+
+      for {locale, expected} <- [
+            {"en", "1,234.5"},
+            {"de", "1.234,5"},
+            {"fr", "1 234,5"},
+            # es groups only from five digits, so there is no separator here at all
+            {"es", "1234,5"},
+            {"ru", "1 234,5"}
+          ] do
+        assert squish(AshLocalize.format(d, locale: locale)) == expected,
+               "expected #{locale} to render #{expected}"
+      end
+    end
+
+    test "dates follow locale field order and separators" do
+      date = ~D[2026-05-22]
+
+      for {locale, expected} <- [
+            {"en", "May 22, 2026"},
+            {"de", "22.05.2026"},
+            {"fr", "22 mai 2026"},
+            {"ja", "2026/05/22"},
+            {"zh-Hant", "2026年5月22日"}
+          ] do
+        assert AshLocalize.format(date, locale: locale) == expected,
+               "expected #{locale} to render #{expected}"
+      end
+    end
+
+    test "lists take the locale's conjunction" do
+      for {locale, expected} <- [
+            {"en", "a, b, and c"},
+            {"de", "a, b und c"},
+            {"fr", "a, b et c"},
+            {"es", "a, b y c"},
+            {"ru", "a, b и c"},
+            {"ja", "a、b、c"}
+          ] do
+        assert AshLocalize.format(["a", "b", "c"], locale: locale) == expected,
+               "expected #{locale} to join as #{expected}"
+      end
+    end
+
+    test "money places the currency symbol per locale convention" do
+      money = Money.new(:USD, "1234.5")
+
+      # en leads with the symbol, de trails it, zh-Hant leads with a distinct
+      # display name for a foreign currency.
+      assert AshLocalize.format(money, locale: "en") == "$1,234.50"
+      assert squish(AshLocalize.format(money, locale: "de")) == "1.234,50 $"
+      assert squish(AshLocalize.format(money, locale: "fr")) == "1 234,50 $US"
+      assert AshLocalize.format(money, locale: "zh-Hant") == "US$1,234.50"
+    end
+
+    test "the locale data is really loaded" do
+      # Canary for the setup itself. A missing cache makes Localize fall back to
+      # :und while still returning {:ok, ...}, so every assertion above would
+      # quietly become "en output under a non-en locale name" instead of failing.
+      assert AshLocalize.format(1_234_567, locale: "de") !=
+               AshLocalize.format(1_234_567, locale: "en")
     end
   end
 end
