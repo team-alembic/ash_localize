@@ -65,4 +65,20 @@ defmodule AshLocalize do
       {:error, exception} -> raise exception
     end
   end
+
+  @doc """
+  Renders an Ash error message with locale-correct interpolated values.
+
+  Accepts the `{message, vars}` shape Phoenix's `translate_error/1` convention uses,
+  a bare message string, or an Ash error struct carrying `:message` and `:vars`.
+
+      AshLocalize.translate_error({"must have %{max} or fewer items", max: 1234},
+        locale: "de")
+      #=> "must have 1.234 or fewer items"
+
+  See `AshLocalize.ErrorMessage` for what this fixes in Ash's error pipeline and
+  what it deliberately does not.
+  """
+  @spec translate_error(term(), keyword()) :: String.t()
+  defdelegate translate_error(error, opts \\ []), to: AshLocalize.ErrorMessage, as: :translate
 end
