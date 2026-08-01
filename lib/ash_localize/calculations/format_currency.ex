@@ -65,8 +65,11 @@ defmodule AshLocalize.Calculations.FormatCurrency do
   def calculate(records, opts, context) do
     Helpers.format(records, opts, context, fn amount, locale, record ->
       case unpack(amount, opts, record) do
-        {amount, currency} -> Localize.Number.to_string!(amount, locale: locale, currency: currency)
-        nil -> nil
+        {amount, currency} ->
+          Localize.Number.to_string!(amount, locale: locale, currency: currency)
+
+        nil ->
+          nil
       end
     end)
   end

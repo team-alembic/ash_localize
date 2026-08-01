@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MIX_ENV: test
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          elixir-version: "1.20"
+          otp-version: "29"
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+
+      # CLDR locale data: ~5MB of ETF fetched from the Localize CDN, not committed.
+      # The `test` alias runs `mix localize.download_locales`, which only reaches the
+      # network for a locale that is missing or version-stale in this directory — a
+      # warm cache makes it a filesystem check. A failed download halts the task, so a
+      # CDN outage fails the build rather than silently testing against the `:und`
+      # fallback, which would pass while asserting nothing.
+      #
+      # Keyed on config.exs (which holds :supported_locales) and mix.lock (which pins
+      # the localize version, and with it the CLDR data version), so changing either
+      # busts the cache.
+      - name: Cache CLDR locale data
+        uses: actions/cache@v4
+        with:
+          path: priv/localize
+          key: locales-${{ hashFiles('config/config.exs', 'mix.lock') }}
+
+      - run: mix deps.get
+
+      - run: mix deps.unlock --check-unused
+
+      - run: mix format --check-formatted
+
+      - run: mix compile --warnings-as-errors
+
+      - run: mix credo --strict
+
+      - run: mix test

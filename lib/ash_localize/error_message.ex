@@ -59,6 +59,8 @@ defmodule AshLocalize.ErrorMessage do
   See the module documentation. Options are passed to `AshLocalize.Context.locale/2`,
   so `:locale` wins over the application default.
   """
+  alias AshLocalize.ErrorMessage.Catalogue
+
   @spec translate(term(), keyword()) :: String.t()
   def translate(error, opts \\ [])
 
@@ -66,7 +68,7 @@ defmodule AshLocalize.ErrorMessage do
 
   def translate({message, vars}, opts) when is_binary(message) do
     locale = AshLocalize.Context.locale!(%{}, argument: opts[:locale])
-    catalogue = opts[:catalogue] || AshLocalize.ErrorMessage.Catalogue.impl()
+    catalogue = opts[:catalogue] || Catalogue.impl()
     vars = normalize_vars(vars)
 
     case catalogue.fetch(message, to_string(locale)) do

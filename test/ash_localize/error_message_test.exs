@@ -1,6 +1,8 @@
 defmodule AshLocalize.ErrorMessageTest do
   use ExUnit.Case, async: true
 
+  alias Ash.Error.Changes.InvalidAttribute
+
   describe "translate_error/2 — interpolation without translation" do
     test "a message with no variables passes through" do
       assert AshLocalize.translate_error({"must be present", []}, locale: "de") ==
@@ -81,7 +83,7 @@ defmodule AshLocalize.ErrorMessageTest do
 
     test "a real Ash.Error.Changes.InvalidAttribute is translated" do
       error =
-        Ash.Error.Changes.InvalidAttribute.exception(
+        InvalidAttribute.exception(
           field: :count,
           message: "must be less than or equal to %{max}",
           vars: [max: 1234]

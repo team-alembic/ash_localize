@@ -166,7 +166,10 @@ defmodule AshLocalize.QuantityType do
         max = fetch_bound(constraints, @max_key, @max_default)
 
         []
-        |> add_bound_error(min && compare_lt?(value, min), message: "must be at least %{min}", min: min)
+        |> add_bound_error(min && compare_lt?(value, min),
+          message: "must be at least %{min}",
+          min: min
+        )
         |> add_bound_error(
           max && compare_gt?(value, max),
           [{:message, "must be at most %{#{@max_key}}"}, {@max_key, max}]
