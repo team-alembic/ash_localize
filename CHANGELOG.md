@@ -6,6 +6,36 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- `AshLocalize.translate_error/1,2` — renders Ash error messages with
+  locale-correct interpolated values, and with MessageFormat 2 plural selection
+  where a translation exists. Ash's extraction pipeline (`Ash.Gettext`,
+  `mix ash.gettext.extract`, `priv/gettext/ash.pot`) is sound; the rendering half
+  has three defects that live in the *values* rather than the words, so no `.po`
+  file can repair them:
+
+  1. Interpolated numbers are unformatted — Ash's `decimal.ex` and `float.ex`
+     pass raw numbers into `"must be less than or equal to %{max}"`, so a German
+     user reads `1234.5` where they expect `1.234,5`.
+  2. Lists are joined with an English comma before a translator sees them —
+     `Enum.join(attributes, ", ")` in `validation/present.ex`.
+  3. There is no plural selection in any locale. Gettext selects on a variable
+     named `count`, and there are zero occurrences of `%{count}` across Ash's 58
+     shipped msgids; the counted ones name the variable after the constraint
+     (`%{at_least}`, `%{precision}`). Every Ash error renders through
+     singular-only `dgettext`, so Russian and Polish get one form where they need
+     three.
+
+  Accepts the `{message, vars}` shape Phoenix's `translate_error/1` convention
+  uses, a bare string, or an Ash error struct. Requires no change to Ash.
+
+- `AshLocalize.ErrorMessage.Catalogue` — behaviour for MF2 translations of Ash
+  msgids, with `Catalogue.Builtin` reading `priv/messages/ash/<locale>.exs` at
+  compile time and falling back along locale subtags (`de-AT` → `de`). Swap it
+  with `config :ash_localize, error_catalogue: MyApp.Catalogue`. The shipped
+  catalogue is a seed pending translator review — an untranslated msgid falls
+  back to the English string with locale-correct values, which still fixes (1)
+  and (2) above without a word being translated.
+
 - `AshLocalize.format/1,2` — value-dispatched locale-aware formatting. Reach for
   it in Phoenix templates, LiveView, scripts, exporters, notification builders —
   anywhere you already have the value in hand. Dispatches through the upstream

@@ -98,4 +98,84 @@ defmodule AshLocalize.ErrorMessageTest do
                "must have 1,234 or fewer items"
     end
   end
+
+  describe "translate_error/2 — MF2 catalogue" do
+    @counted "at least %{at_least} of %{keys} must be present"
+
+    test "selects the plural form from a variable that is not named `count`" do
+      # The defect this exists to fix. Gettext selects a plural form only from
+      # `count`, and Ash's 58 shipped msgids contain no `%{count}` at all — the
+      # counted ones name the variable after the constraint. Russian needs three
+      # forms where singular-only dgettext gives it one.
+      for {n, expected} <- [
+            {1, "нужно указать минимум 1 поле"},
+            {3, "нужно указать минимум 3 поля"},
+            {5, "нужно указать минимум 5 полей"},
+            # 21 takes the singular in Russian, which is the case a naive
+            # `n == 1` check gets wrong
+            {21, "нужно указать минимум 21 поле"}
+          ] do
+        assert AshLocalize.translate_error({@counted, at_least: n, keys: ~w[a b]}, locale: "ru") ==
+                 expected
+      end
+    end
+
+    test "a regional locale inherits its language's translations" do
+      assert AshLocalize.translate_error({@counted, at_least: 5, keys: ~w[a b]}, locale: "ru-RU") ==
+               "нужно указать минимум 5 полей"
+    end
+
+    test "an untranslated locale still gets locale-correct values" do
+      # The conjunction and the grouping are both fixed before a single word is
+      # translated, and neither is reachable from a .po file at any level of
+      # translator effort — Enum.join/2 has already run by then.
+      assert AshLocalize.translate_error({@counted, at_least: 1, keys: ~w[a b]}, locale: "de") ==
+               "at least 1 of a und b must be present"
+    end
+
+    defmodule BrokenCatalogue do
+      @behaviour AshLocalize.ErrorMessage.Catalogue
+      @impl true
+      def fetch(_msgid, _locale), do: {:ok, "{{unclosed {$oops"}
+    end
+
+    test "a broken translation falls back instead of raising" do
+      # The caller is already on a failure path. A raise here would replace a
+      # validation error the user can act on with a 500 they cannot.
+      assert AshLocalize.translate_error({"must have %{max} or fewer items", max: 1234},
+               locale: "de",
+               catalogue: BrokenCatalogue
+             ) == "must have 1.234 or fewer items"
+    end
+
+    defmodule StubCatalogue do
+      @behaviour AshLocalize.ErrorMessage.Catalogue
+      @impl true
+      def fetch("must be present", "fr"), do: {:ok, "{{doit être présent}}"}
+      def fetch(_msgid, _locale), do: :error
+    end
+
+    test "the catalogue is replaceable" do
+      assert AshLocalize.translate_error("must be present",
+               locale: "fr",
+               catalogue: StubCatalogue
+             ) == "doit être présent"
+    end
+  end
+
+  describe "Catalogue.Builtin" do
+    alias AshLocalize.ErrorMessage.Catalogue.Builtin
+
+    test "reports the locales it ships translations for" do
+      assert "ru" in Builtin.known_locales()
+    end
+
+    test "an untranslated msgid is :error, not a raise" do
+      assert Builtin.fetch("no such message", "ru") == :error
+    end
+
+    test "an untranslated locale is :error" do
+      assert Builtin.fetch(@counted, "ja") == :error
+    end
+  end
 end

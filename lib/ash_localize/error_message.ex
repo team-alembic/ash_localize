@@ -66,12 +66,13 @@ defmodule AshLocalize.ErrorMessage do
 
   def translate({message, vars}, opts) when is_binary(message) do
     locale = AshLocalize.Context.locale!(%{}, argument: opts[:locale])
+    catalogue = opts[:catalogue] || AshLocalize.ErrorMessage.Catalogue.impl()
+    vars = normalize_vars(vars)
 
-    vars
-    |> normalize_vars()
-    |> Enum.reduce(message, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", render(value, locale))
-    end)
+    case catalogue.fetch(message, to_string(locale)) do
+      {:ok, mf2} -> format_mf2(mf2, vars, locale, message)
+      :error -> interpolate(message, vars, locale)
+    end
   end
 
   def translate(%{message: message, vars: vars}, opts) when is_binary(message) do
@@ -85,6 +86,22 @@ defmodule AshLocalize.ErrorMessage do
   defp normalize_vars(nil), do: []
   defp normalize_vars(vars) when is_map(vars), do: Map.to_list(vars)
   defp normalize_vars(vars) when is_list(vars), do: vars
+
+  # A broken translation must not take an error message down with it — the caller is
+  # already on a failure path and a raise here would replace a validation error the
+  # user can act on with a 500 they cannot. Fall back to the English msgid.
+  defp format_mf2(mf2, vars, locale, message) do
+    case Localize.Message.format(mf2, Map.new(vars), locale: locale) do
+      {:ok, formatted} -> formatted
+      {:error, _exception} -> interpolate(message, vars, locale)
+    end
+  end
+
+  defp interpolate(message, vars, locale) do
+    Enum.reduce(vars, message, fn {key, value}, acc ->
+      String.replace(acc, "%{#{key}}", render(value, locale))
+    end)
+  end
 
   # A list is the one shape worth routing through Localize's list formatter — it is
   # the case a `.po` file provably cannot reach. Everything else goes through
