@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- `AshLocalize.format/1,2` — value-dispatched locale-aware formatting via the new
+  `AshLocalize.Format` protocol. Reach for it in Phoenix templates, LiveView,
+  scripts, exporters, notification builders — anywhere you already have the value
+  in hand. The value carries its dimension (a `%Money{}` knows its currency, a
+  `%Localize.Unit{}` its base unit, a `%Date{}` is structurally identifiable), so
+  no resource + attribute name is needed. Built-in implementations cover
+  `Integer`, `Float`, `Decimal`, `Date`, `NaiveDateTime`, `DateTime`, `List`, and
+  `Localize.Unit`. Optional implementations for `Money`,
+  `Localize.PhoneNumber.Number`, `Localize.Address.Address`, and
+  `Localize.PersonName` are wrapped behind `Code.ensure_loaded?/1` and compile in
+  only when the matching dependency is present. Extend to a custom value type by
+  implementing `AshLocalize.Format` for its struct.
+
 ### Changed
 
 - `AshLocalize.Calculations.FormatCurrency` now natively accepts a `%Money{}`
