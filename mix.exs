@@ -17,6 +17,10 @@ defmodule AshLocalize.MixProject do
       package: package(),
       docs: docs(),
       description: @description,
+      # The Igniter mix tasks call Mix.Task.run/2, Mix.raise/1 and friends. `:mix`
+      # is not in the default PLT, so without this every one of them is reported
+      # as an unknown function.
+      dialyzer: [plt_add_apps: [:mix]],
       source_url: @source_url,
       homepage_url: @source_url,
       name: "AshLocalize"
@@ -45,6 +49,7 @@ defmodule AshLocalize.MixProject do
       {:igniter, "~> 0.8", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
     ] ++ native_deps()
   end
