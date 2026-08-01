@@ -33,6 +33,11 @@ jobs:
       igniter-upgrade: false
       reuse: false
 
+    # Must be a superset of what ash-ci.yml's jobs declare, even for jobs that
+    # will not run — GitHub validates permissions at startup, before evaluating
+    # any `if:`. Granting less fails the whole run before a single job starts.
     permissions:
-      contents: read
+      contents: write
+      pages: write
+      id-token: write
       security-events: write
