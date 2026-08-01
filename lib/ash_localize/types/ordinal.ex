@@ -15,69 +15,15 @@ defmodule AshLocalize.Types.Ordinal do
     * `:max` — maximum value (optional, inclusive).
   """
 
-  use Ash.Type
-
-  @constraints [
-    of: [
-      type: :atom,
-      required: false,
-      doc: "What is being ranked (e.g. `:leaderboard_rank`). The plural-template key."
-    ],
-    min: [type: :integer, default: 1, doc: "Minimum allowed value."],
-    max: [type: :integer, required: false, doc: "Maximum allowed value (inclusive)."]
-  ]
-
-  @impl true
-  def constraints, do: @constraints
-
-  @impl true
-  def storage_type(_constraints), do: :integer
-
-  @impl true
-  def cast_input(nil, _constraints), do: {:ok, nil}
-  def cast_input(n, _constraints) when is_integer(n), do: {:ok, n}
-  def cast_input(_value, _constraints), do: {:error, message: "is not an integer ordinal"}
-
-  @impl true
-  def cast_stored(nil, _constraints), do: {:ok, nil}
-  def cast_stored(n, _constraints) when is_integer(n), do: {:ok, n}
-  def cast_stored(_value, _constraints), do: :error
-
-  @impl true
-  def dump_to_native(nil, _constraints), do: {:ok, nil}
-  def dump_to_native(n, _constraints) when is_integer(n), do: {:ok, n}
-  def dump_to_native(_value, _constraints), do: :error
-
-  @impl true
-  def apply_constraints(nil, _constraints), do: :ok
-
-  def apply_constraints(n, constraints) when is_integer(n) do
-    min = Keyword.get(constraints, :min, 1)
-    max = Keyword.get(constraints, :max)
-
-    errors =
-      []
-      |> add_min_error(n, min)
-      |> add_max_error(n, max)
-
-    case errors do
-      [] -> :ok
-      [error] -> {:error, error}
-      errors -> {:error, errors}
-    end
-  end
-
-  defp add_min_error(errors, n, min) when n < min do
-    [[message: "must be at least %{min}", min: min] | errors]
-  end
-
-  defp add_min_error(errors, _n, _min), do: errors
-
-  defp add_max_error(errors, _n, nil), do: errors
-
-  defp add_max_error(errors, n, max) when n > max do
-    [[message: "must be at most %{max}", max: max] | errors]
-  end
-
-  defp add_max_error(errors, _n, _max), do: errors
+  use AshLocalize.QuantityType,
+    storage: :integer,
+    message: "is not an integer ordinal",
+    min: 1,
+    constraints: [
+      of: [
+        type: :atom,
+        required: false,
+        doc: "What is being ranked (e.g. `:leaderboard_rank`). The plural-template key."
+      ]
+    ]
 end
