@@ -68,7 +68,13 @@ defmodule AshLocalize.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
-      extras: ["README.md", "usage-rules.md", "documentation/custom_units.md", "CHANGELOG.md"]
+      extras: [
+        "README.md",
+        "usage-rules.md",
+        "documentation/custom_types.md",
+        "documentation/custom_units.md",
+        "CHANGELOG.md"
+      ]
     ]
   end
 end

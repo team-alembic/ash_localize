@@ -59,7 +59,34 @@ All notable changes to this project are documented here.
   not split; counts are `:count`, not `:integer`; locale-like strings use the
   dedicated types), and the formatting and locale-resolution conventions.
 
+- `AshLocalize.CodeType` and `AshLocalize.QuantityType` — macros for the two type
+  families that did not have one, alongside the existing `AshLocalize.UnitType`.
+  Adding a type is now a declaration plus, for a code, its validation:
+
+  ```elixir
+  use AshLocalize.CodeType, message: "is not a valid script"
+
+  use AshLocalize.QuantityType,
+    storage: :decimal, message: "is not a number", min: 0.0, max: 1.0
+  ```
+
+  The split is nominal versus quantitative. A **code** is a member of a
+  controlled vocabulary — it cannot be ordered or aggregated, and comparing two
+  is equality rather than magnitude. A **quantity** is a magnitude; whether it
+  carries a dimension decides between `QuantityType` and `UnitType`. See
+  [Adding a type](documentation/custom_types.md).
+
+- `mix ash_localize.gen.type --kind code|quantity` generates either, and
+  registers the short name with `--short-name`. Dimensioned quantities keep
+  `mix ash_localize.gen.unit_type`.
+
 ### Changed
+
+- The eleven built-in code and quantity types are rewritten onto the new macros,
+  with no behaviour change other than one fix: atom input is now accepted by all
+  five code types rather than only `Subdivision`. Codes are routinely written as
+  atoms (`:AUD`, `:usca`) and rejecting them was an inconsistency, not a guard.
+  Storage is unchanged.
 
 - `mix ash_localize.install` now registers a starting set of type short names
   rather than all of them: `:locale`, `:territory`, `:timezone`,
