@@ -6,6 +6,10 @@ defmodule AshLocalize.MixProject do
   @source_url "https://github.com/elixir-localize/ash_localize"
 
   def project do
+    # Resolved once here and exported, so mix.exs, config/config.exs and the test
+    # support resource all agree without each re-running the detection.
+    System.put_env("ASH_LOCALIZE_NATIVE", if(native?(), do: "1", else: "0"))
+
     [
       app: :ash_localize,
       version: @version,
@@ -55,14 +59,14 @@ defmodule AshLocalize.MixProject do
   end
 
   # `localize_phone_number` and `localize_address` build NIFs against
-  # libphonenumber and libpostal. Neither is on a stock runner and libpostal is
-  # not packaged at all, so declaring them unconditionally means the project
-  # cannot compile anywhere the system libraries are absent.
+  # libphonenumber and libpostal. Neither is on a stock CI runner and libpostal is
+  # not packaged at all, so declaring them unconditionally means the project cannot
+  # compile anywhere the system libraries are absent.
   #
-  # They are opt-in instead. `ASH_LOCALIZE_NATIVE=1 mix test` runs the full suite
-  # once the libraries are installed; without it those two types are absent, which
-  # is exactly the state a consumer who has not added the packages is in — the
-  # types are `Code.ensure_loaded?` guarded either way, so nothing else changes.
+  # So they follow the libraries: present on the machine, they are declared and the
+  # full suite runs; absent, they are skipped. A developer working on this library
+  # has them installed and gets everything without opting in, and a bare runner
+  # still compiles.
   defp native_deps do
     if native?() do
       [
@@ -74,7 +78,39 @@ defmodule AshLocalize.MixProject do
     end
   end
 
-  defp native?, do: System.get_env("ASH_LOCALIZE_NATIVE") in ~w(1 true)
+  # ASH_LOCALIZE_NATIVE forces the answer either way. The native CI job sets 1 so
+  # that a failed libpostal build fails the job, rather than silently dropping to
+  # the reduced suite and reporting success.
+  defp native? do
+    case System.get_env("ASH_LOCALIZE_NATIVE") do
+      truthy when truthy in ~w(1 true) ->
+        true
+
+      falsy when falsy in ~w(0 false) ->
+        false
+
+      _ ->
+        lib?("libphonenumber", "phonenumbers/phonenumberutil.h") and
+          lib?("libpostal", "postal/libpostal.h")
+    end
+  end
+
+  # Mirrors what the NIF Makefiles do: pkg-config where the library ships a .pc
+  # (libpostal does), a header search where it does not (libphonenumber).
+  defp lib?(pkg, header) do
+    pkg_config?(pkg) or header?(header)
+  end
+
+  defp pkg_config?(pkg) do
+    match?({_, 0}, System.cmd("pkg-config", ["--exists", pkg], stderr_to_stdout: true))
+  rescue
+    ErlangError -> false
+  end
+
+  defp header?(header) do
+    ["/usr/include", "/usr/local/include", "/opt/homebrew/include"]
+    |> Enum.any?(&File.exists?(Path.join(&1, header)))
+  end
 
   defp package do
     [
