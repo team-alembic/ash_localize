@@ -10,7 +10,9 @@
     AshLocalize.QuantityType,
     AshLocalize.UnitType
   ],
-  ignore_paths: [],
+  # CI runs doctor under MIX_ENV=test, which compiles test/support. Those are
+  # fixtures, not library surface.
+  ignore_paths: [~r(^test/)],
   # Per-module spec coverage is not a useful gate here: the type modules are
   # almost entirely `@impl Ash.Type` callbacks, whose contracts come from the
   # behaviour. The overall floor below is what actually holds the line.
