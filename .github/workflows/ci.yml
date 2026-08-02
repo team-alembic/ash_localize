@@ -15,12 +15,13 @@ jobs:
       postgres: false
       sqlite: false
 
-      # Nothing to check yet: no Spark DSL extension, and sobelow scans for
-      # Phoenix web vulnerabilities in a package with no web layer. Turn both on
-      # when the Phoenix bridge and the translations DSL land.
+      # No Spark DSL extension yet; turn these on when the translations DSL lands.
       spark-formatter: false
       spark-cheat-sheets: false
-      sobelow: false
+
+      # Documentation coverage, matching what ash_authentication runs. Thresholds
+      # and the macro-module exclusions live in .doctor.exs.
+      doctor: true
 
       # Not published, and there is no HEX_API_KEY or Pages set up for a private
       # repository. Flip both when the first release is ready.
@@ -35,7 +36,6 @@ jobs:
 
       community-files: false
       conventional-commit: false
-      changelog-lint: false
       igniter-upgrade: false
       reuse: false
 

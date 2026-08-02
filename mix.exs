@@ -8,7 +8,9 @@ defmodule AshLocalize.MixProject do
   def project do
     # Resolved once here and exported, so mix.exs, config/config.exs and the test
     # support resource all agree without each re-running the detection.
-    System.put_env("ASH_LOCALIZE_NATIVE", if(native?(), do: "1", else: "0"))
+    native = native?()
+    System.put_env("ASH_LOCALIZE_NATIVE", if(native, do: "1", else: "0"))
+    drop_stale_build(native)
 
     [
       app: :ash_localize,
@@ -54,6 +56,8 @@ defmodule AshLocalize.MixProject do
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:sobelow, ">= 0.0.0", only: [:dev, :test], runtime: false},
+      {:doctor, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
     ] ++ native_deps()
   end
@@ -105,6 +109,26 @@ defmodule AshLocalize.MixProject do
     match?({_, 0}, System.cmd("pkg-config", ["--exists", pkg], stderr_to_stdout: true))
   rescue
     ErlangError -> false
+  end
+
+  # The natives are gated at compile time, in this file, in config/config.exs and
+  # in guards around the type modules themselves. Mix cannot see that an
+  # environment variable or a newly installed library changed any of it, so it
+  # reuses the other mode's build and fails with ":phone_number is not a valid
+  # type" — which points nowhere near the cause. Track the mode and drop our own
+  # build artefacts when it flips.
+  defp drop_stale_build(native) do
+    # Not Mix.Project.build_path/0: during project/0 the env is not settled, so it
+    # reports _build/dev even under `mix test`. Sweep every env instead.
+    marker = "_build/.ash_localize_native"
+    current = to_string(native)
+
+    if File.exists?(marker) and File.read!(marker) != current do
+      Enum.each(Path.wildcard("_build/*/lib/ash_localize"), &File.rm_rf!/1)
+    end
+
+    File.mkdir_p!("_build")
+    File.write!(marker, current)
   end
 
   defp header?(header) do
