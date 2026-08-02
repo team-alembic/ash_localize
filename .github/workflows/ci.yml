@@ -47,3 +47,84 @@ jobs:
       pages: write
       id-token: write
       security-events: write
+
+  # ash-ci.yml has no hook for installing system packages, so the two NIF-backed
+  # satellites are covered here instead. libphonenumber comes from apt;
+  # libpostal is not packaged anywhere and has to be built, so it is cached.
+  native:
+    name: mix test (native satellites)
+    runs-on: ubuntu-latest
+    env:
+      ASH_LOCALIZE_NATIVE: "1"
+      LIBPOSTAL_PREFIX: /home/runner/.libpostal
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      # localize_phone_number links against libphonenumber, protobuf and abseil.
+      # Its Makefile has no pkg-config path for Linux and falls back to a bare
+      # -lphonenumber, which is satisfied once the -dev packages are present.
+      - name: Install libphonenumber
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libphonenumber-dev libprotobuf-dev libabsl-dev
+
+      - name: Cache libpostal
+        id: libpostal-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LIBPOSTAL_PREFIX }}
+          key: libpostal-v1.1-${{ runner.os }}
+
+      # --disable-data-download skips libpostal's ~2GB model download. The NIF
+      # only needs it when Localize.Address.Nif loads, which happens on the first
+      # parse call — and ash_localize never parses, it casts component maps. If a
+      # future test does parse, this is the line to revisit.
+      - name: Build libpostal
+        if: steps.libpostal-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch v1.1 https://github.com/openvenues/libpostal /tmp/libpostal
+          cd /tmp/libpostal
+          ./bootstrap.sh
+          ./configure --prefix="$LIBPOSTAL_PREFIX" --disable-data-download
+          make -j"$(nproc)"
+          make install
+
+      - name: Put libpostal on the toolchain paths
+        run: |
+          echo "PKG_CONFIG_PATH=$LIBPOSTAL_PREFIX/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LIBPOSTAL_PREFIX/lib" >> "$GITHUB_ENV"
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: native-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+          restore-keys: native-${{ runner.os }}-
+
+      # The caching ash-ci.yml cannot do for us: ~5MB of CLDR data, keyed on the
+      # config that selects the locales and the lock that pins the CLDR version.
+      - name: Cache CLDR locale data
+        uses: actions/cache@v4
+        with:
+          path: priv/localize
+          key: locales-${{ hashFiles('config/config.exs', 'mix.lock') }}
+
+      - run: mix deps.get
+
+      # Meaningful here and only here: this is the one configuration in which
+      # every declared dependency is present.
+      - run: mix deps.unlock --check-unused
+
+      - run: mix compile --warnings-as-errors
+
+      - run: mix test
+
