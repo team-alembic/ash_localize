@@ -120,6 +120,16 @@ defmodule AshLocalize.Types.Unit do
   @impl true
   def cast_stored(nil, _constraints), do: {:ok, nil}
 
+  def cast_stored(%Decimal{coef: coef}, _constraints) when coef in [:NaN, :inf], do: :error
+
+  # A JSON roundtrip (embedded resources, Ash.Signals) stores a Decimal as a string.
+  def cast_stored(value, constraints) when is_binary(value) do
+    case Decimal.parse(value) do
+      {%Decimal{} = d, ""} -> cast_stored(d, constraints)
+      _ -> :error
+    end
+  end
+
   def cast_stored(value, constraints) when is_number(value) or is_struct(value, Decimal) do
     case Localize.Unit.new(value, base_unit(constraints)) do
       {:ok, quantity} -> {:ok, quantity}

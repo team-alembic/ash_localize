@@ -10,6 +10,9 @@ All notable changes to this project are documented here.
   `Infinity` and `-Infinity` in `cast_input/2`; they used to pass every check.
 - `min: nil` and `max: nil` are accepted on quantity types and mean unbounded, as
   the `AshLocalize.QuantityType` docs state; they raised `Spark.Options.ValidationError`.
+- `cast_stored/2` on decimal-storage quantity types and on `AshLocalize.Types.Unit`
+  loads the decimal string that a JSON roundtrip produces, and an integer or float.
+  It refuses `NaN` and `Infinity`. Before, the string returned `:error`.
 
 ### Added
 
