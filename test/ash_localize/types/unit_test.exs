@@ -112,4 +112,32 @@ defmodule AshLocalize.Types.UnitTest do
       assert {:error, _} = Unit.validate_category("zorblaxes")
     end
   end
+
+  describe "non-finite values" do
+    test "a NaN or infinite Decimal is refused, bare or paired with a unit" do
+      for text <- ["NaN", "Infinity", "-Infinity"] do
+        value = Decimal.new(text)
+        assert {:error, _} = Unit.cast_input(value, @speed)
+        assert {:error, _} = Unit.cast_input({value, "kilometer-per-second"}, @speed)
+        assert {:error, _} = Unit.cast_input(%{value: value, unit: "meter-per-second"}, @speed)
+
+        assert {:error, _} =
+                 Unit.cast_input(%{"value" => value, "unit" => "meter-per-second"}, @speed)
+      end
+    end
+
+    test "a quantity struct holding a non-finite value is refused" do
+      {:ok, quantity} = Localize.Unit.new(Decimal.new("NaN"), "meter-per-second")
+      assert {:error, _} = Unit.cast_input(quantity, @speed)
+    end
+
+    test "a finite Decimal still casts" do
+      assert {:ok, %Localize.Unit{}} = Unit.cast_input(Decimal.new("12.5"), @speed)
+    end
+
+    test "the per-category types refuse them too" do
+      assert {:error, _} =
+               AshLocalize.Types.Length.cast_input(Decimal.new("Infinity"), base_unit: "meter")
+    end
+  end
 end

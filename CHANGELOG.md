@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Decimal-storage quantity types and `AshLocalize.Types.Unit` refuse `NaN`,
+  `Infinity` and `-Infinity` in `cast_input/2`; they used to pass every check.
+- `min: nil` and `max: nil` are accepted on quantity types and mean unbounded, as
+  the `AshLocalize.QuantityType` docs state; they raised `Spark.Options.ValidationError`.
+
 ### Added
 
 - `AshLocalize.translate_error/1,2` — renders Ash error messages with

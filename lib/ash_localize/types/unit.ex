@@ -141,6 +141,10 @@ defmodule AshLocalize.Types.Unit do
     end
   end
 
+  defp cast_quantity(%Localize.Unit{value: %Decimal{coef: coef}}, _constraints)
+       when coef in [:NaN, :inf],
+       do: {:error, message: "is not a valid quantity"}
+
   defp cast_quantity(%Localize.Unit{} = quantity, constraints) do
     with :ok <- check_category(quantity, constraints) do
       to_base_unit(quantity, constraints)
