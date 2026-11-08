@@ -84,11 +84,14 @@ defmodule AshLocalize.QuantityType do
       bound_type = if storage == :integer, do: :integer, else: {:or, [:float, :integer]}
 
       min_spec =
-        [type: bound_type, doc: "Minimum allowed value."] ++
+        [type: {:or, [bound_type, nil]}, doc: "Minimum allowed value."] ++
           if(min_default, do: [default: min_default], else: [required: false])
 
       max_spec =
-        [type: bound_type, doc: "Maximum allowed value (inclusive)."] ++
+        [
+          type: if(max_required?, do: bound_type, else: {:or, [bound_type, nil]}),
+          doc: "Maximum allowed value (inclusive)."
+        ] ++
           cond do
             max_required? -> [required: true]
             max_default -> [default: max_default]
@@ -129,12 +132,27 @@ defmodule AshLocalize.QuantityType do
         defp compare_gt?(a, b), do: a > b
         defp coerce_bound(n), do: n
       else
+        def cast_input(%Decimal{coef: coef}, _constraints) when coef in [:NaN, :inf],
+          do: {:error, message: @invalid_message}
+
         def cast_input(%Decimal{} = d, _constraints), do: {:ok, d}
         def cast_input(n, _constraints) when is_integer(n), do: {:ok, Decimal.new(n)}
         def cast_input(n, _constraints) when is_float(n), do: {:ok, Decimal.from_float(n)}
         def cast_input(_value, _constraints), do: {:error, message: @invalid_message}
 
+        # A JSON roundtrip (embedded resources, Ash.Signals) stores a Decimal as a string.
+        def cast_stored(%Decimal{coef: coef}, _constraints) when coef in [:NaN, :inf], do: :error
         def cast_stored(%Decimal{} = d, _constraints), do: {:ok, d}
+        def cast_stored(n, _constraints) when is_integer(n), do: {:ok, Decimal.new(n)}
+        def cast_stored(n, _constraints) when is_float(n), do: {:ok, Decimal.from_float(n)}
+
+        def cast_stored(value, constraints) when is_binary(value) do
+          case Decimal.parse(value) do
+            {%Decimal{} = d, ""} -> cast_stored(d, constraints)
+            _ -> :error
+          end
+        end
+
         def cast_stored(_value, _constraints), do: :error
 
         def dump_to_native(%Decimal{} = d, _constraints), do: {:ok, d}
