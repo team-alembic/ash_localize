@@ -6,16 +6,6 @@ All notable changes to this project are documented here.
 
 ### Added
 
-- `AshLocalize.Phoenix.Components` — Phoenix function components for profile
-  forms, compiled only when `phoenix_live_view` is present. `locale_select/1`
-  labels each locale with its autonym and territory flag. `timezone_input/1`
-  renders a text input with a `<datalist>` of canonical IANA zones labelled from
-  CLDR in the display locale ("London · British Time (GMT+00:00)"), cached per
-  locale per day. `timezone_label/2` returns one such label. `person_name_input/1`
-  renders one input per name part, ordered by the locale's CLDR name order.
-  `AshLocalize.Phoenix.text_direction/1` returns `"rtl"` or `"ltr"` for a
-  locale's `dir` attribute.
-
 - `AshLocalize.translate_error/1,2` — renders Ash error messages with
   locale-correct interpolated values, and with MessageFormat 2 plural selection
   where a translation exists. Ash's extraction pipeline (`Ash.Gettext`,
@@ -99,14 +89,9 @@ All notable changes to this project are documented here.
   a map whose parts are all blank casts to `nil`.
 
 - `localize ~> 1.5` (from `~> 1.0`) and `localize_person_names ~> 1.1` (from
-  `~> 1.0`), for `Localize.Locale.LocaleDisplay`, the time zone display names and
-  `Localize.DateTime.Timezone.known_timezones/0`. The lock holds `localize`
-  1.6.0: 1.6.1 rekeys its likely-subtags data by tuple, and
+  `~> 1.0`). The lock holds `localize` 1.6.0: 1.6.1 rekeys its likely-subtags data by tuple, and
   `localize_person_names` 1.1.0 still looks it up by string, so formatting a
   name without a locale raises.
-
-- New optional dependencies `phoenix_live_view ~> 1.1` and `phoenix_html ~> 4.2`
-  for `AshLocalize.Phoenix.Components`.
 
 - The eleven built-in code and quantity types are rewritten onto the new macros,
   with no behaviour change other than one fix: atom input is now accepted by all

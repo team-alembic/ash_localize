@@ -9,7 +9,6 @@ Implemented and on `main`:
 - **Foundations** (`a910c71`). `Locale`, `Territory`, `CurrencyCode` types; validations; `AshLocalize.Context`; default config.
 - **Formatting calculations** (`5deadfd`). `format_number`, `format_currency`, `format_date`, `format_datetime`, `format_list`.
 - **Composite domain types.** `Unit` (`224b8e1`), `PersonName` (`eb55a58`), `PhoneNumber` and `PostalAddress` (`2b02af1`) — each with its formatting calculation.
-- **Phoenix inputs** (Phase 5, part of stage 2). `AshLocalize.Phoenix.Components` provides `locale_select/1`, `timezone_input/1` and `person_name_input/1` as standalone function components, plus `AshLocalize.Phoenix.text_direction/1`. They take a form field directly; the `<.ash_input>` dispatcher that would pick them by type is not built.
 
 Still to come: the optional Postgres and Phoenix integrations, the GraphQL / JSON:API registrations, and translations — sequenced last by choice. See Build phases.
 
@@ -280,11 +279,10 @@ Dispatch table:
 | `:count`, `:ordinal`                           | `<.number_input>` (integer)                | `localize_number_inputs`   |
 | `:percentage`, `:ratio`, `:score`, `:rating`   | `<.number_input>` (decimal)                | `localize_number_inputs`   |
 | `:date`, `:utc_datetime`, `:naive_datetime`    | date / datetime input                      | `localize_datetime_inputs` |
-| `:locale`, `:territory`, `:currency_code`      | select on CLDR data (flags / symbols)      | **`ash_localize` builds** (`:locale` done: `locale_select/1`) |
+| `:locale`, `:territory`, `:currency_code`      | select on CLDR data (flags / symbols)      | **`ash_localize` builds**  |
 | `:phone_number`                                | `<input type="tel">` with E.164 hint       | **`ash_localize` builds**  |
 | `:postal_address`                              | per-country address form (template-driven) | **`ash_localize` builds**  |
-| `:person_name`                                 | per-locale name-field order                | **`ash_localize` builds** (done: `person_name_input/1`) |
-| `:timezone`                                    | text input + datalist of CLDR zone names   | **`ash_localize` builds** (done: `timezone_input/1`) |
+| `:person_name`                                 | per-locale name-field order                | **`ash_localize` builds**  |
 | `LocalizedString` *(Phase 7)*                  | tabbed multi-locale input                  | **`ash_localize` builds**  |
 
 Six rows are upstream-covered; six are small components `ash_localize` builds on top of `localize_inputs_core`'s tokens; two need Phase 7 first.
@@ -298,7 +296,7 @@ For `LocalizedString` fields, the form gathers per-locale values via a tabbed in
 Three commit-sized stages, in order:
 
 1. **Plug + dispatcher skeleton.** `LocalePlug`; `<.ash_input>` for the upstream-covered types (units, numbers, dates). The Phoenix/LiveView test setup (`Phoenix.LiveViewTest`, a thin test endpoint) arrives with this stage and unblocks the rest.
-2. **Selects and component-light types.** Locale, territory, and currency_code selects (CLDR data with flags and display names); `<input type="tel">` for phone; basic `:postal_address` and `:person_name` field forms. Done so far: the locale select, the `:person_name` form and a `:timezone` input, as standalone components in `AshLocalize.Phoenix.Components`. Territory, currency code, phone and address remain.
+2. **Selects and component-light types.** Locale, territory, and currency_code selects (CLDR data with flags and display names); `<input type="tel">` for phone; basic `:postal_address` and `:person_name` field forms.
 3. **Multi-locale forms.** Tabbed `<.ash_input>` for `LocalizedString` and `AshPhoenix.Form` write handling. Depends on Phase 7.
 
 ## GraphQL and JSON:API

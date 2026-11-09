@@ -12,7 +12,4 @@ unless Code.ensure_loaded?(Localize.PhoneNumber) and Code.ensure_loaded?(Localiz
   """)
 end
 
-# Elixir ships a UTC-only database; time zone labels need real offsets.
-Calendar.put_time_zone_database(Tz.TimeZoneDatabase)
-
 ExUnit.start()

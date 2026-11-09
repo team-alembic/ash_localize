@@ -214,34 +214,6 @@ The process dictionary is deliberately not an arm of that chain, and neither is
 tenant. Unset with no default configured returns `{:error, :no_locale}` rather than
 a silent `nil`.
 
-## Phoenix inputs
-
-With `phoenix_live_view` in your deps, `AshLocalize.Phoenix.Components` provides
-form inputs for the `:locale`, `:timezone` and `:person_name` types. Each takes a
-form field and builds its labels from CLDR:
-
-```heex
-<.locale_select field={@form[:locale]} prompt={gettext("Use the default")} />
-
-<.timezone_input field={@form[:timezone]} placeholder={gettext("Search time zones")} />
-
-<.person_name_input
-  field={@form[:name]}
-  labels={%{given_name: gettext("Given name"), surname: gettext("Surname")}}
-/>
-```
-
-`locale_select` labels each locale in its own language, "🇩🇪 Deutsch
-(Deutschland)". `timezone_input` lists every canonical IANA zone in a `<datalist>`,
-labelled in the current locale: "London · British Time (GMT+00:00)". The offset
-needs a time zone database such as `tz` or `tzdata`. `person_name_input` orders
-its inputs the way the locale orders names, so `ja` puts the surname first. An
-untouched input submits `""`, and the types cast that to `nil`.
-
-Import the components with `import AshLocalize.Phoenix.Components`.
-`AshLocalize.Phoenix.text_direction/1` returns `"rtl"` or `"ltr"` for a locale,
-for the `dir` attribute of your root layout.
-
 ## Adding your own types
 
 Three kinds, three macros. The distinction is what the value *is*:
@@ -320,11 +292,10 @@ declares the upstream package, so declaring nothing costs nothing:
 | `localize_person_names` | `:person_name` |
 | `localize_phone_number` | `:phone_number` (libphonenumber) |
 | `localize_address` | `:postal_address` (libpostal) |
-| `phoenix_live_view` | [Phoenix inputs](#phoenix-inputs) |
 
 Planned, and not yet built: `ash_postgres` + `localize_sql` for native composite
 types, ICU collation and migrations; `ash_phoenix` + `localize_web` for the locale
-plug and the `<.ash_input>` dispatcher; `localize_translate` for translated content.
+plug and form helpers; `localize_translate` for translated content.
 
 ## License
 
