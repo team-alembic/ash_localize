@@ -4,6 +4,11 @@ defmodule AshLocalize.Types.TimezoneTest do
   alias AshLocalize.Types.Timezone
 
   describe "cast_input/2" do
+    test "casts a blank string to nil, as an unset form input submits" do
+      assert Timezone.cast_input("", []) == {:ok, nil}
+      assert Timezone.cast_input("  ", []) == {:ok, nil}
+    end
+
     test "accepts a canonical IANA timezone name and passes it through" do
       assert Timezone.cast_input("Australia/Sydney", []) == {:ok, "Australia/Sydney"}
     end

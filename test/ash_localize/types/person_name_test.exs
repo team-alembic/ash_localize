@@ -27,6 +27,23 @@ defmodule AshLocalize.Types.PersonNameTest do
       assert {:error, _} = PersonName.cast_input("Ada Lovelace", [])
     end
 
+    test "casts blank string parts to nil" do
+      assert {:ok, %Localize.PersonName{given_name: "Ada", surname: nil}} =
+               PersonName.cast_input(%{"given_name" => "Ada", "surname" => ""}, [])
+
+      assert {:ok, %Localize.PersonName{surname: nil}} =
+               PersonName.cast_input(%{"given_name" => "Ada", "surname" => "  "}, [])
+    end
+
+    test "casts a map whose parts are all blank to nil" do
+      assert PersonName.cast_input(%{"given_name" => "", "surname" => " "}, []) == {:ok, nil}
+      assert PersonName.cast_input(%{}, []) == {:ok, nil}
+    end
+
+    test "still requires a given name when another part is filled in" do
+      assert {:error, _} = PersonName.cast_input(%{"given_name" => "", "surname" => "Hopper"}, [])
+    end
+
     test "passes nil through" do
       assert PersonName.cast_input(nil, []) == {:ok, nil}
     end

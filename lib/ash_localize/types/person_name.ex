@@ -9,7 +9,9 @@ if Code.ensure_loaded?(Localize.PersonName) do
         attribute :author_name, :person_name
 
     Casting accepts a map of name parts with atom or string keys, or an existing
-    `%Localize.PersonName{}`. A `:given_name` is required.
+    `%Localize.PersonName{}`. A `:given_name` is required. Blank string parts cast to
+    `nil`, and a map whose parts are all blank casts to `nil`, so an untouched form
+    clears the attribute.
 
     ## Name parts
 
@@ -34,9 +36,9 @@ if Code.ensure_loaded?(Localize.PersonName) do
     def cast_input(%Localize.PersonName{} = name, _constraints), do: {:ok, name}
 
     def cast_input(map, _constraints) when is_map(map) do
-      case Localize.PersonName.new(name_parts(map)) do
-        {:ok, name} -> {:ok, name}
-        {:error, _reason} -> {:error, message: "is not a valid person name"}
+      case map |> name_parts() |> Enum.reject(&blank?/1) do
+        [] -> {:ok, nil}
+        parts -> new_name(parts)
       end
     end
 
@@ -58,6 +60,18 @@ if Code.ensure_loaded?(Localize.PersonName) do
       do: {:ok, Map.from_struct(name)}
 
     def dump_to_native(_value, _constraints), do: :error
+
+    defp new_name(parts) do
+      case Localize.PersonName.new(parts) do
+        {:ok, name} -> {:ok, name}
+        {:error, _reason} -> {:error, message: "is not a valid person name"}
+      end
+    end
+
+    # HTML forms submit an empty text input as "".
+    defp blank?({_field, nil}), do: true
+    defp blank?({_field, value}) when is_binary(value), do: String.trim(value) == ""
+    defp blank?(_part), do: false
 
     # Collect the known name-part fields from a map that may use atom or string keys.
     defp name_parts(map) do

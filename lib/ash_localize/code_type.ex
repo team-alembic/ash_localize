@@ -35,8 +35,8 @@ defmodule AshLocalize.CodeType do
 
   ## The callback
 
-  `c:cast_code/2` receives a binary — `nil`, atoms and non-string input are handled
-  before it is called — and returns `{:ok, canonical}` or `{:error, keyword}`.
+  `c:cast_code/2` receives a non-blank binary — `nil`, blank strings, atoms and
+  non-string input are handled before it is called — and returns `{:ok, canonical}` or `{:error, keyword}`.
 
   For the ordinary rejection, call the generated `code_error/0`, which produces the
   `:message` given to `use`. Return a keyword list directly when the reason is more
@@ -48,6 +48,11 @@ defmodule AshLocalize.CodeType do
     * `:message` (required) — the validation error for a rejected value.
     * `:constraints` — extra `Spark.Options` constraint definitions, if the type
       takes any. Defaults to `[]`.
+
+  ## Blank strings
+
+  A blank string casts to `nil`, because that is what an HTML form submits for an
+  unset select or text input.
 
   ## Atoms
 
@@ -88,7 +93,8 @@ defmodule AshLocalize.CodeType do
       end
 
       def cast_input(value, constraints) when is_binary(value) do
-        cast_code(value, constraints)
+        # HTML forms submit an unset select or text input as "".
+        if String.trim(value) == "", do: {:ok, nil}, else: cast_code(value, constraints)
       end
 
       def cast_input(_value, _constraints), do: code_error()
