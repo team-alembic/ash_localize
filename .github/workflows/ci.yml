@@ -92,7 +92,8 @@ jobs:
           git clone --depth 1 --branch v1.1 https://github.com/openvenues/libpostal /tmp/libpostal
           cd /tmp/libpostal
           ./bootstrap.sh
-          ./configure --prefix="$LIBPOSTAL_PREFIX" --disable-data-download
+          # libpostal v1.1 calls functions it never declares, which GCC 14 rejects.
+          ./configure --prefix="$LIBPOSTAL_PREFIX" --disable-data-download CFLAGS="-O2 -fpermissive"
           make -j"$(nproc)"
           make install
 
