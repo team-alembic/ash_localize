@@ -39,6 +39,8 @@ config :ash, :custom_types,
   electric_current: AshLocalize.Types.ElectricCurrent,
   voltage: AshLocalize.Types.Voltage
 
+config :ash, default_string_length_count: :codepoints
+
 # ex_money 6.2 deprecates auto-starting the exchange rate service. We only ever
 # format `%Money{}` values through `Localize.Chars` — no conversion, no rates —
 # so opt out rather than start a retriever we never ask anything of.
