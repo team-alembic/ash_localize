@@ -4,6 +4,11 @@ defmodule AshLocalize.Types.LocaleTest do
   alias AshLocalize.Types.Locale
 
   describe "cast_input/2" do
+    test "casts a blank string to nil, as an unset form input submits" do
+      assert Locale.cast_input("", []) == {:ok, nil}
+      assert Locale.cast_input("  ", []) == {:ok, nil}
+    end
+
     test "accepts a valid locale and canonicalises region casing" do
       assert Locale.cast_input("en-us", []) == {:ok, "en-US"}
     end

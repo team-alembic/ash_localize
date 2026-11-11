@@ -49,8 +49,8 @@ defmodule AshLocalize.MixProject do
   defp deps do
     [
       {:ash, "~> 3.30"},
-      {:localize, "~> 1.0"},
-      {:localize_person_names, "~> 1.0", optional: true},
+      {:localize, "~> 1.5"},
+      {:localize_person_names, "~> 1.1", optional: true},
       {:ash_money, "~> 0.2.6", optional: true},
       {:igniter, "~> 0.8", optional: true},
       {:ex_doc, "~> 0.34", only: [:dev], runtime: false},

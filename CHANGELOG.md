@@ -82,6 +82,17 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Blank strings cast to `nil`, because an HTML form submits an unset input as
+  `""`. The code types (`:locale`, `:timezone`, `:territory`, `:subdivision`,
+  `:currency_code`, and any type built on `AshLocalize.CodeType`) cast a blank
+  string to `nil` rather than rejecting it. `:person_name` drops blank parts, and
+  a map whose parts are all blank casts to `nil`.
+
+- `localize ~> 1.5` (from `~> 1.0`) and `localize_person_names ~> 1.1` (from
+  `~> 1.0`). The lock holds `localize` 1.6.0: 1.6.1 rekeys its likely-subtags data by tuple, and
+  `localize_person_names` 1.1.0 still looks it up by string, so formatting a
+  name without a locale raises.
+
 - The eleven built-in code and quantity types are rewritten onto the new macros,
   with no behaviour change other than one fix: atom input is now accepted by all
   five code types rather than only `Subdivision`. Codes are routinely written as

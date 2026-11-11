@@ -130,6 +130,29 @@ defmodule AshLocalize.IntegrationTest do
       assert loaded.formatted_author == "Ada Lovelace"
     end
 
+    test "stores and reloads a name with a locale and preferred order" do
+      {:ok, profile} =
+        create(%{
+          author_name: %{
+            given_name: "Hayao",
+            surname: "Miyazaki",
+            locale: "ja",
+            preferred_order: :surname_first
+          }
+        })
+
+      {:ok, reloaded} = Ash.get(Profile, profile.id)
+
+      assert %Localize.PersonName{
+               preferred_order: :surname_first,
+               locale: %Localize.LanguageTag{}
+             } =
+               reloaded.author_name
+
+      assert {:ok, %{formatted_author: formatted}} = Ash.load(reloaded, [:formatted_author])
+      assert is_binary(formatted)
+    end
+
     test "rejects a name without a given name" do
       assert {:error, %Ash.Error.Invalid{errors: errors}} =
                create(%{author_name: %{surname: "Valim"}})
