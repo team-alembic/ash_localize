@@ -67,5 +67,54 @@ defmodule AshLocalize.Types.PersonNameTest do
       assert PersonName.dump_to_native(nil, []) == {:ok, nil}
       assert PersonName.cast_stored(nil, []) == {:ok, nil}
     end
+
+    test "round-trips a name with its own locale through JSON storage" do
+      {:ok, name} =
+        PersonName.cast_input(%{given_name: "Hayao", surname: "Miyazaki", locale: "ja"}, [])
+
+      loaded = json_round_trip(name)
+
+      assert %Localize.PersonName{given_name: "Hayao", locale: %Localize.LanguageTag{}} = loaded
+      assert Localize.LanguageTag.to_string(loaded.locale) == "ja"
+      assert {:ok, _formatted} = Localize.PersonName.to_string(loaded, locale: "en")
+    end
+
+    test "round-trips a preferred order through JSON storage" do
+      {:ok, name} =
+        PersonName.cast_input(
+          %{given_name: "Ada", surname: "Lovelace", preferred_order: :surname_first},
+          []
+        )
+
+      loaded = json_round_trip(name)
+
+      assert %Localize.PersonName{preferred_order: :surname_first} = loaded
+      assert {:ok, _formatted} = Localize.PersonName.to_string(loaded, locale: "en")
+    end
+
+    test "loads an atom-keyed stored map" do
+      stored = %{given_name: "Ada", preferred_order: "surname_first", locale: "ja"}
+
+      assert {:ok,
+              %Localize.PersonName{
+                preferred_order: :surname_first,
+                locale: %Localize.LanguageTag{}
+              }} =
+               PersonName.cast_stored(stored, [])
+    end
+
+    test "rejects an unknown stored preferred order" do
+      assert PersonName.cast_stored(
+               %{"given_name" => "Ada", "preferred_order" => "backwards"},
+               []
+             ) ==
+               :error
+    end
+  end
+
+  defp json_round_trip(name) do
+    {:ok, dumped} = PersonName.dump_to_native(name, [])
+    {:ok, loaded} = dumped |> Jason.encode!() |> Jason.decode!() |> PersonName.cast_stored([])
+    loaded
   end
 end

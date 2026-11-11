@@ -48,7 +48,16 @@ if Code.ensure_loaded?(Localize.PersonName) do
     def cast_stored(nil, _constraints), do: {:ok, nil}
 
     def cast_stored(map, _constraints) when is_map(map) do
-      {:ok, struct(Localize.PersonName, name_parts(map))}
+      parts =
+        map
+        |> name_parts()
+        |> Enum.reject(fn {_field, value} -> is_nil(value) end)
+        |> Enum.map(&load_part/1)
+
+      case Localize.PersonName.new(parts) do
+        {:ok, name} -> {:ok, name}
+        {:error, _reason} -> :error
+      end
     end
 
     def cast_stored(_value, _constraints), do: :error
@@ -57,9 +66,24 @@ if Code.ensure_loaded?(Localize.PersonName) do
     def dump_to_native(nil, _constraints), do: {:ok, nil}
 
     def dump_to_native(%Localize.PersonName{} = name, _constraints),
-      do: {:ok, Map.from_struct(name)}
+      do: {:ok, name |> Map.from_struct() |> Map.new(&dump_part/1)}
 
     def dump_to_native(_value, _constraints), do: :error
+
+    @name_orders Map.new(~w(given_first surname_first sorting)a, &{Atom.to_string(&1), &1})
+
+    defp dump_part({:locale, %Localize.LanguageTag{} = locale}),
+      do: {:locale, Localize.LanguageTag.to_string(locale)}
+
+    defp dump_part({:preferred_order, order}) when is_atom(order) and not is_nil(order),
+      do: {:preferred_order, Atom.to_string(order)}
+
+    defp dump_part(part), do: part
+
+    defp load_part({:preferred_order, order}) when is_binary(order),
+      do: {:preferred_order, Map.get(@name_orders, order, order)}
+
+    defp load_part(part), do: part
 
     defp new_name(parts) do
       case Localize.PersonName.new(parts) do
