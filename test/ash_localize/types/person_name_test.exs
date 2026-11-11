@@ -44,6 +44,22 @@ defmodule AshLocalize.Types.PersonNameTest do
       assert {:error, _} = PersonName.cast_input(%{"given_name" => "", "surname" => "Hopper"}, [])
     end
 
+    test "casts a preferred order submitted as a string" do
+      params = %{
+        "given_name" => "Taro",
+        "surname" => "Yamada",
+        "preferred_order" => "surname_first"
+      }
+
+      assert {:ok, %Localize.PersonName{preferred_order: :surname_first}} =
+               PersonName.cast_input(params, [])
+    end
+
+    test "rejects an unknown preferred order string" do
+      assert {:error, message: "is not a valid person name"} =
+               PersonName.cast_input(%{given_name: "Taro", preferred_order: "backwards"}, [])
+    end
+
     test "passes nil through" do
       assert PersonName.cast_input(nil, []) == {:ok, nil}
     end

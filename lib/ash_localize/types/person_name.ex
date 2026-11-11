@@ -38,7 +38,7 @@ if Code.ensure_loaded?(Localize.PersonName) do
     def cast_input(map, _constraints) when is_map(map) do
       case map |> name_parts() |> Enum.reject(&blank?/1) do
         [] -> {:ok, nil}
-        parts -> new_name(parts)
+        parts -> parts |> Enum.map(&load_part/1) |> new_name()
       end
     end
 
